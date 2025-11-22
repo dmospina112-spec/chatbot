@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App Educativa Docente</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles/styles.css">
+</head>
+<body>
+  <div class="container py-5">
+    <header class="text-center mb-5">
+      <img src="img/logo.jpg" alt="Logo Institución Educativa" class="img-fluid mb-3" style="max-height: 100px;">
+      <h1 class="text-primary">Bienvenido Docente</h1>
+      <h2 class="h4 text-primary">Institución Educativa Gilberto Alzate Avendaño</h2>
+    </header>
+  </div>
+
+  <section id="loginSection" class="login-section py-4">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-5">
+          <section class="card p-4 shadow login-card">
+            <h3 class="text-center text-primary mb-4">Ingreso al Sistema</h3>
+            <form id="loginForm" novalidate>
+              <div class="mb-3">
+                <label for="usuario" class="form-label">Usuario</label>
+                <input type="text" class="form-control" id="usuario" required>
+              </div>
+              <div class="mb-3">
+                <label for="contrasena" class="form-label">Contraseña</label>
+                <input type="password" class="form-control" id="contrasena" required>
+              </div>
+
+              <div id="mensajeError" class="text-danger mb-3 d-none">
+                Usuario o contraseña incorrectos.
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+            </form>
+
+            <div class="mt-3 text-center">
+              <button type="button" class="btn btn-link p-0" id="recordarBtn">¿Olvidaste tu contraseña?</button>
+            </div>
+
+            <div id="mensajeRecuperacion" class="alert alert-success mt-3 d-none">
+              Se ha enviado un enlace de recuperación al correo electrónico registrado.
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="appContent" class="d-none">
+    <div class="container my-4">
+      <div class="d-flex justify-content-end mb-3">
+        <button type="button" class="btn btn-outline-danger btn-sm" id="btnLogout">Cerrar sesión</button>
+      </div>
+      <section aria-label="Plantillas disciplinarias">
+        <div class="text-center mb-4">
+          <h2 class="fw-bold text-uppercase text-primary">Plantillas Disciplinarias</h2>
+          <p class="text-muted">Registro de observaciones según el tipo de falta cometida por el estudiante.</p>
+        </div>
+
+        <div class="accordion" id="disciplinariasAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="faltasTipo1Heading">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faltasTipo1" aria-expanded="true" aria-controls="faltasTipo1">
+                Faltas Tipo 1
+              </button>
+            </h2>
+            <div id="faltasTipo1" class="accordion-collapse collapse show" data-bs-parent="#disciplinariasAccordion">
+              <div class="accordion-body">
+                <h5 class="text-primary mb-3">EVENTOS DE LLAMADO DE ATENCIÓN EN RELACIÓN COMPORTAMIENTO EN EL AULA</h5>
+                <div class="mb-3">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="aula1"><label class="form-check-label" for="aula1">Hace comentarios inadecuados con temas fuera de contexto.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="aula2"><label class="form-check-label" for="aula2">Juega en clase y/o cambia de puesto, lanza objetos, basuras, saliva dentro del aula.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="aula3"><label class="form-check-label" for="aula3">Llega tarde al salón de clase sin autorización; situación que perturba el normal desarrollo de las clases, por lo que si es reiterativo pasará a tipo II.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="aula4"><label class="form-check-label" for="aula4">Interrumpe el desarrollo de clase con gritos, silbidos, abucheos u otros sonidos.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="aula5"><label class="form-check-label" for="aula5">Usa celulares, radios, audífonos y juegos electrónicos o cualquier elemento distractor en el aula sin propósito pedagógico ni autorización del docente.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="aula6"><label class="form-check-label" for="aula6">Ingresa a las aulas en horas de descanso sin autorización del docente.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="aula7"><label class="form-check-label" for="aula7">Consume alimentos en clase sin autorización del docente.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="aula8"><label class="form-check-label" for="aula8">Se niega a contribuir con el aseo y buena presentación de las aulas.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="aula9"><label class="form-check-label" for="aula9">Lanza objetos, basuras, tapas, botellas con agua, borradores, papeles, lapiceros entre otros.</label></div>
+                </div>
+
+                <h5 class="text-success mt-4 mb-3">EVENTOS DE LLAMADO DE ATENCIÓN EN RELACIÓN A COMPORTAMIENTOS INADECUADOS EN ESPACIOS INSTITUCIONALES</h5>
+                <div class="mb-3">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="espacios1"><label class="form-check-label" for="espacios1">Juega y/o cambia de puesto, lanza objetos, basuras, saliva en actos comunitarios.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="espacios2"><label class="form-check-label" for="espacios2">No justifica por escrito su ausencia y/o retardo a la institución educativa.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="espacios3"><label class="form-check-label" for="espacios3">Falta con su higiene y presentación personal.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="espacios4"><label class="form-check-label" for="espacios4">Interrumpe el desarrollo de actos comunitarios con gritos, silbidos, abucheos u otros sonidos.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="espacios5"><label class="form-check-label" for="espacios5">Lanza objetos, basuras, tapas, botellas con agua, borradores, papeles, lapiceros fuera del aula.</label></div>
+                </div>
+
+                <h5 class="text-warning mt-4 mb-3">EVENTOS DE LLAMADO DE ATENCIÓN QUE AFECTAN UNA ADECUADA COMUNICACIÓN</h5>
+                <div class="mb-3">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="comunicacion1"><label class="form-check-label" for="comunicacion1">Utiliza vocabulario descortés y/o soez y/o en tono alto para dirigirse a miembros de la comunidad educativa (tipo I si no hay agresión o bullying).</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="comunicacion2"><label class="form-check-label" for="comunicacion2">Indispone con falsas acusaciones a cualquier miembro de la comunidad educativa (tipo II si hay amenaza o consecuencias graves; tipo III si hay delitos).</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="comunicacion3"><label class="form-check-label" for="comunicacion3">Coloca apodos a cualquier miembro de la comunidad educativa.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="comunicacion4"><label class="form-check-label" for="comunicacion4">Justificaciones falsas de sus acciones, sin afectar a compañeros.</label></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="faltasTipo2Heading">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faltasTipo2" aria-expanded="false" aria-controls="faltasTipo2">
+                Faltas Tipo 2
+              </button>
+            </h2>
+            <div id="faltasTipo2" class="accordion-collapse collapse" data-bs-parent="#disciplinariasAccordion">
+              <div class="accordion-body">
+                <h5 class="text-danger mb-3">EVENTOS DE LLAMADO DE ATENCIÓN EN RELACIÓN COMPORTAMIENTO EN EL AULA</h5>
+                <div class="mb-3">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula1"><label class="form-check-label" for="tipo2aula1">Realiza acoso escolar al interior del aula a sus compañeros(as) y/o docentes.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula2"><label class="form-check-label" for="tipo2aula2">Ocasiona lesiones físicas a sus compañeros que no ameritan reparación ni consideración como situación tipo III.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula3"><label class="form-check-label" for="tipo2aula3">Realiza fraude en evaluaciones, trabajos o documentación requerida.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula4"><label class="form-check-label" for="tipo2aula4">Causa daños a implementos escolares de compañeros y/o dotación del aula.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula5"><label class="form-check-label" for="tipo2aula5">Usa dispositivos electrónicos sin autorización, afectando el desarrollo de clases e involucrando a otros compañeros.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula6"><label class="form-check-label" for="tipo2aula6">Evade clase, quedándose por fuera del aula, poniendo en riesgo su integridad y afectando otras actividades.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula7"><label class="form-check-label" for="tipo2aula7">No justifica por escrito su ausencia o retardo a clase.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula8"><label class="form-check-label" for="tipo2aula8">Se presenta sin materiales requeridos, interrumpiendo el desarrollo de las clases.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula9"><label class="form-check-label" for="tipo2aula9">Esconde o saca útiles escolares de la maleta de sus compañeros (“Tortugazo”).</label></div>
+                </div>
+
+                <h5 class="text-success mt-4 mb-3">EVENTOS DE LLAMADO DE ATENCIÓN EN RELACIÓN A COMPORTAMIENTOS INADECUADOS EN ESPACIOS INSTITUCIONALES</h5>
+                <div class="mb-3">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios1"><label class="form-check-label" for="tipo2espacios1">Difunde información privada tratada en mecanismos institucionales.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios2"><label class="form-check-label" for="tipo2espacios2">Escribe mensajes insultantes y/o vulgares a cualquier integrante de la institución.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios3"><label class="form-check-label" for="tipo2espacios3">Causa daños a implementos institucionales y/o planta física.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios4"><label class="form-check-label" for="tipo2espacios4">Atenta contra el ambiente y uso racional de servicios públicos.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios5"><label class="form-check-label" for="tipo2espacios5">Usa dispositivos electrónicos en actos comunitarios sin autorización.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios6"><label class="form-check-label" for="tipo2espacios6">Permanece fuera de la institución sin autorización, poniendo en riesgo su integridad.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios7"><label class="form-check-label" for="tipo2espacios7">Atenta y/o destruye símbolos patrios o institucionales.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios8"><label class="form-check-label" for="tipo2espacios8">Esconde o saca útiles escolares de la maleta de otro miembro de la comunidad educativa.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios9"><label class="form-check-label" for="tipo2espacios9">Agresiones físicas y verbales (si hay daños por reparar, pasa a tipo III).</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios10"><label class="form-check-label" for="tipo2espacios10">Consume sustancias de posible adicción dentro o fuera de la institución portando uniforme escolar.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2espacios11"><label class="form-check-label" for="tipo2espacios11">Llega tarde reiteradamente sin justificación, afectando el desarrollo académico.</label></div>
+                </div>
+
+                <h5 class="text-warning mt-4 mb-3">EVENTOS DE LLAMADO DE ATENCIÓN QUE AFECTAN UNA ADECUADA COMUNICACIÓN</h5>
+                <div class="mb-3">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2comunicacion1"><label class="form-check-label" for="tipo2comunicacion1">Agrede verbalmente a miembros de la comunidad educativa.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2comunicacion2"><label class="form-check-label" for="tipo2comunicacion2">Ocasiona lesiones físicas (empujones, puñetazos, patadas, etc.).</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2comunicacion3"><label class="form-check-label" for="tipo2comunicacion3">Promueve o participa en peleas dentro o fuera de la institución.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2comunicacion4"><label class="form-check-label" for="tipo2comunicacion4">Oculta hechos o miente para evitar sanciones (si hay delito, pasa a tipo III).</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2comunicacion5"><label class="form-check-label" for="tipo2comunicacion5">No asume los llamados de atención con respeto.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2comunicacion6"><label class="form-check-label" for="tipo2comunicacion6">Es negligente en la presentación de citaciones o información al acudiente.</label></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="faltasTipo3Heading">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faltasTipo3" aria-expanded="false" aria-controls="faltasTipo3">
+                Faltas Tipo 3
+              </button>
+            </h2>
+            <div id="faltasTipo3" class="accordion-collapse collapse" data-bs-parent="#disciplinariasAccordion">
+              <div class="accordion-body">
+                <h5 class="text-danger mb-3">
+                  DENTRO DE ESTE TIPO DE SITUACIONES SE ENCUENTRAN AQUELLAS QUE SON CONSTITUTIVAS DE PRESUNTOS DELITOS. POR EJEMPLO, AQUELLOS DELITOS CONTRA LA LIBERTAD, LA INTEGRIDAD, LA IDENTIDAD DE GÉNERO Y LA ORIENTACIÓN SEXUAL. SE DEBE TENER EN CUENTA QUE ESTE TIPO DE CASOS PUEDEN SUCEDER TANTO DENTRO Y FUERA DE LA INSTITUCIÓN EDUCATIVA.
+                </h5>
+
+                <div class="mb-3">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_1"><label class="form-check-label" for="tipo3_1">Presentarse en estado de embriaguez o bajo efectos de sustancias alucinógenas.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_2"><label class="form-check-label" for="tipo3_2">Consumir dentro de la institución sustancias alucinógenas.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_3"><label class="form-check-label" for="tipo3_3">Traficar dentro de la institución educativa con sustancias alucinógenas.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_4"><label class="form-check-label" for="tipo3_4">Explotar detonantes o compuestos químicos que generen riesgo para la comunidad educativa.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_5"><label class="form-check-label" for="tipo3_5">Hurtar implementos de la institución u objetos personales a cualquier miembro de la comunidad educativa.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_6"><label class="form-check-label" for="tipo3_6">Destruir total o parcialmente la propiedad ajena (rallar, tirar, esconder, quemar, partir, mojar, entre otras).</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_7"><label class="form-check-label" for="tipo3_7">Ejercer actos que atenten contra la libertad, la integridad y la formación sexual de niños, niñas y adolescentes.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_8"><label class="form-check-label" for="tipo3_8">Agresión sexual sin contacto (comentarios, chistes, gestos o miradas obscenas).</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_9"><label class="form-check-label" for="tipo3_9">Agresión sexual con contacto (incluye halar o bajar prendas de vestir).</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_10"><label class="form-check-label" for="tipo3_10">Contacto sexual abusivo entre menores de edad.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_11"><label class="form-check-label" for="tipo3_11">Violación.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_12"><label class="form-check-label" for="tipo3_12">Actos sexuales abusivos.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_13"><label class="form-check-label" for="tipo3_13">Acoso sexual.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_14"><label class="form-check-label" for="tipo3_14">Trata de personas.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_15"><label class="form-check-label" for="tipo3_15">Explotación sexual y comercial de niños, niñas y adolescentes.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_16"><label class="form-check-label" for="tipo3_16">Ejercer actos que atenten contra el derecho a la vida.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_17"><label class="form-check-label" for="tipo3_17">Guardar, ocultar o portar armas o explosivos dentro de la institución educativa.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_18"><label class="form-check-label" for="tipo3_18">Conformar combos, barras o pandillas con fines delictivos en la institución educativa.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_19"><label class="form-check-label" for="tipo3_19">Cometer actos delictivos portando el uniforme escolar dentro o fuera de la institución.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_20"><label class="form-check-label" for="tipo3_20">Amenaza o intimida a miembros de la comunidad educativa por medios directos o indirectos.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_21"><label class="form-check-label" for="tipo3_21">Utiliza el nombre de la institución para actividades de lucro sin autorización del consejo directivo.</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo3_22"><label class="form-check-label" for="tipo3_22">Altera documentos oficiales como informes, registros o firmas.</label></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-success" id="btnGuardarSeleccion">Guardar selección</button>
+            <button type="button" class="btn btn-primary" id="btnGenerarReporte">Generar reporte</button>
+            <button type="button" class="btn btn-secondary" id="btnImprimir">Imprimir</button>
+          </div>
+
+          <div id="reporteGenerado" class="mt-4 p-3 border border-info rounded bg-light d-none">
+            <h5>Observaciones seleccionadas:</h5>
+            <ul id="listaReporte" class="mb-0"></ul>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section id="estimulos" class="container my-5">
+      <div class="text-center mb-4">
+        <h2 class="text-success fw-bold text-uppercase">Plantillas de Estímulos</h2>
+        <p class="text-muted fs-5">ESTÍMULOS</p>
+      </div>
+
+      <div class="card p-4 shadow-sm">
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="estimulo1">
+          <label class="form-check-label" for="estimulo1">
+            Candidato a promoción anticipada.
+          </label>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="estimulo2">
+          <label class="form-check-label" for="estimulo2">
+            Los estudiantes que obtengan resultados destacados en las pruebas externas, olimpiadas del conocimiento, procesos investigativos se hará un reconocimiento público.
+          </label>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="estimulo3">
+          <label class="form-check-label" for="estimulo3">
+            Al finalizar cada periodo académico se le hará reconocimiento al estudiante destacado de cada grupo en cuanto a su desempeño académico como a los valores institucionales.
+          </label>
+        </div>
+
+        <div class="mt-4 d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-success" id="btnGuardarEstimulos">Guardar selección</button>
+          <button type="button" class="btn btn-primary" id="btnReporteEstimulos">Generar reporte</button>
+          <button type="button" class="btn btn-secondary" id="btnImprimirEstimulos">Imprimir</button>
+        </div>
+
+        <div id="reporteEstimulos" class="mt-4 p-3 border border-success rounded bg-light d-none">
+          <h5>🎓 Estímulos seleccionados:</h5>
+          <ul id="listaEstimulos" class="mb-0"></ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/script.js"></script>
+</body>
+</html>

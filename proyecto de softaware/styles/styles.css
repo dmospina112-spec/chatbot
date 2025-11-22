@@ -1,0 +1,27 @@
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #f0f4f8;
+}
+
+.card {
+  border: none;
+}
+
+.login-section {
+  background-color: #e9f0f7;
+}
+
+.login-card {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.accordion-button {
+  font-weight: 600;
+}
+
+.accordion-body h5 {
+  font-size: 1rem;
+  letter-spacing: 0.3px;
+}

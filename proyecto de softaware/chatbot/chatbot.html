@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chatbot Docente</title>
+
+    <style>
+      /* ==== ESTILOS GENERALES ==== */
+      body {
+        font-family: Arial, sans-serif; /* Fuente clara y legible */
+        background-color: #f7f7f7; /* Fondo gris suave */
+        display: flex; /* Usamos flexbox para centrar */
+        justify-content: center;
+        align-items: center;
+        height: 100vh; /* Ocupa toda la pantalla */
+        margin: 0;
+      }
+
+      /* ==== CONTENEDOR DEL CHAT ==== */
+      .chat-container {
+        width: 100%;
+        max-width: 400px; /* Ancho máximo para que sea responsivo */
+        background: #fff; /* Fondo blanco */
+        border-radius: 14px; /* Bordes redondeados */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra ligera */
+        display: flex;
+        flex-direction: column; /* Apila los elementos en columna */
+        overflow: hidden;
+      }
+
+      /* ==== ÁREA DE MENSAJES ==== */
+      .messages {
+        flex: 1; /* Ocupa el espacio disponible */
+        padding: 15px;
+        overflow-y: auto; /* Scroll si hay muchos mensajes */
+      }
+
+      /* ==== MENSAJES GENERALES ==== */
+      .message {
+        margin: 8px 0;
+        padding: 10px;
+        border-radius: 10px;
+        max-width: 80%; /* No ocupan todo el ancho */
+      }
+
+      /* Estilo de los mensajes del usuario */
+      .user {
+        background-color: #669dd8; /* Azul claro */
+        align-self: flex-end; /* Se alinean a la derecha */
+      }
+
+      /* Estilo de los mensajes del bot */
+      .bot {
+        background-color: rgb(220, 207, 202); /* Gris claro */
+        align-self: flex-start; /* Se alinean a la izquierda */
+      }
+
+      /* ==== ÁREA DE ENTRADA ==== */
+      .input-area {
+        display: flex;
+        border-top: 1px solid #351414; /* Línea separadora superior */
+      }
+
+      /* Caja de texto */
+      .input-area input {
+        flex: 1; /* Ocupa todo el espacio disponible */
+        padding: 12px;
+        border: none;
+        outline: none;
+        font-size: 14px;
+      }
+
+      /* Botón de enviar */
+      .input-area button {
+        padding: 12px;
+        background: #d40d0d; /* Azul primario */
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+
+      /* Efecto hover (cuando pasamos el mouse) */
+      .input-area button:hover {
+        background: #0056b3; /* Azul más oscuro */
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Contenedor principal del chatbot -->
+    <div
+      class="chat-container"
+      role="region"
+      aria-label="Chat con el bot educativo"
+    >
+      <!-- Área donde se mostrarán los mensajes -->
+      <div class="messages" id="messages"></div>
+
+      <!-- Área de entrada de texto y botón -->
+      <div class="input-area">
+        <input
+          type="text"
+          id="userInput"
+          aria-label="Escribe tu pregunta"
+          placeholder="Escribe tu pregunta..."
+        />
+        <button onclick="sendMessage()">Enviar</button>
+      </div>
+    </div>
+
+    <script>
+      // Referencia al contenedor donde aparecerán los mensajes
+      const messages = document.getElementById("messages");
+
+      /**
+       * Función que agrega un mensaje al área de chat
+       * @param {string} text - El texto del mensaje
+       * @param {string} sender - El remitente ("user" o "bot")
+       */
+      function addMessage(text, sender) {
+        const div = document.createElement("div"); // Crea un nuevo div
+        div.classList.add("message", sender); // Aplica las clases de estilo
+        div.textContent = text; // Agrega el texto
+        messages.appendChild(div); // Lo agrega al chat
+        messages.scrollTop = messages.scrollHeight; // Hace scroll automático hacia abajo
+      }
+
+      /**
+       * Función que genera la respuesta del bot según la pregunta del usuario
+       * @param {string} input - Texto ingresado por el usuario
+       * @returns {string} respuesta del bot
+       */
+      function botResponse(input) {
+  const pregunta = input.toLowerCase(); // Convierte a minúsculas para comparar
+
+  if (pregunta.includes("hola")) {
+    return "Hola 👋 bienvenido profe. ¿En qué puedo ayudarte?\n" +
+           "1. ¿Cómo puedo acceder a las plantillas?\n" +
+           "2. ¿Cómo elijo una plantilla para mi clase?\n" +
+           "3. ¿Puedo modificar una plantilla?\n" +
+           "4. Salir";
+  } 
+  else if (pregunta.includes("1") || pregunta.includes("acceder")) {
+    return "1️⃣ Ingresa a la aplicación con tu usuario y contraseña.";
+  } 
+  else if (pregunta.includes("2") || pregunta.includes("elijo")) {
+    return "2️⃣ Una vez ingreses a la aplicación, selecciona la plantilla que mejor se adapte a tu objetivo.";
+  } 
+  else if (pregunta.includes("3") || pregunta.includes("modificar")) {
+    return "3️⃣ Sí, puedes modificar la plantilla antes de compartirla.";
+  } 
+  else if (pregunta.includes("4") || pregunta.includes("salir")) {
+    return "4️⃣ Fue un gusto ayudarte, profe 👋";
+  } 
+  else {
+    return "❌ Opción no válida. Por favor elige un número del 1 al 4.";
+  }
+}
+
+      /**
+       * Función que envía el mensaje del usuario y muestra la respuesta del bot
+       */
+      function sendMessage() {
+        const input = document.getElementById("userInput");
+        const text = input.value.trim(); // Elimina espacios en blanco
+        if (!text) return; // No hace nada si el input está vacío
+
+        addMessage(text, "user"); // Agrega el mensaje del usuario
+        input.value = ""; // Limpia la caja de texto
+
+        const respuesta = botResponse(text); // Obtiene la respuesta del bot
+        setTimeout(() => addMessage(respuesta, "bot"), 500); // Pausa simulando "pensar"
+      }
+
+      // Permite enviar el mensaje al presionar la tecla Enter
+      document.getElementById("userInput").addEventListener("keypress", (e) => {
+        if (e.key === "Enter") sendMessage();
+      });
+    </script>
+  </body>
+</html>

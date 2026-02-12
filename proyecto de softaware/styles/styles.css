@@ -25,3 +25,14 @@ body {
   font-size: 1rem;
   letter-spacing: 0.3px;
 }
+.chatbot-frame {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 380px;
+  height: 520px;
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+  z-index: 9999;
+}

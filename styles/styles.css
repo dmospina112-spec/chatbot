@@ -1,19 +1,29 @@
-/* estilos.css */
 body {
-  margin: 40px;
+  margin: 0;
   font-family: 'Segoe UI', sans-serif;
   background-color: #f0f4f8;
 }
 
-.seccion {
-  border: 2px solid #ddd;
-  padding: 20px;
-  margin-bottom: 30px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+.card {
+  border: none;
 }
 
-h1, h2 {
-  color: #d60000;
+.login-section {
+  background-color: #e9f0f7;
 }
+
+.login-card {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.accordion-button {
+  font-weight: 600;
+}
+
+.accordion-body h5 {
+  font-size: 1rem;
+  letter-spacing: 0.3px;
+}
+/* Chatbot moved to chatbot/chatbot.css */
+

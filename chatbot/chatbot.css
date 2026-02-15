@@ -1,0 +1,122 @@
+#chatbot-bubble {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;  
+}
+
+#chatbot-window {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 300px;
+    height: 400px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 9999;   
+}
+
+#chatbot-header {
+    background: #007bff;
+    color: white;
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
+}
+
+#chatbot-messages {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    font-size: 14px;
+}
+
+#chatbot-input-area {
+    display: flex;
+    border-top: 1px solid #ddd;
+}
+
+#chatbot-input {
+    flex: 1;
+    border: none;
+    padding: 8px;
+}
+
+#chatbot-send {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+body {
+    overflow-x: hidden;
+}
+
+/* Mensajes */
+#chatbot-messages .message {
+    margin-bottom: 10px;
+    max-width: 85%;
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+#chatbot-messages .user {
+    background: #e9f5ff;
+    align-self: flex-end;
+}
+
+#chatbot-messages .bot {
+    background: #f1f1f1;
+    align-self: flex-start;
+}
+
+#chatbot-messages {
+    display: flex;
+    flex-direction: column;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    float: right;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/* Menú de opciones */
+.menu-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.menu-btn {
+    background: #0056b3;
+    color: white;
+    border: none;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    text-align: left;
+    transition: background-color 0.3s ease;
+}
+
+.menu-btn:hover {
+    background: #004085;
+}
+
+.menu-btn:active {
+    background: #003062;
+}
+
+.menu-options {
+    margin-top: 8px;
+}

@@ -1,63 +1,114 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>App Educativa Docente</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles/styles.css">
-</head>
-<body>
-  <div class="container py-5">
-    <header class="text-center mb-5">
-      <img src="img/logo.jpg" alt="Logo Institución Educativa" class="img-fluid mb-3" style="max-height: 100px;">
-      <h1 class="text-primary">Bienvenido Docente</h1>
-      <h2 class="h4 text-primary">Institución Educativa Gilberto Alzate Avendaño</h2>
-    </header>
-  </div>
-
-  <section id="loginSection" class="login-section py-4">
-    <div class="container">
-      <div class="row justify-content-center">
-        <div class="col-md-7 col-lg-5">
-          <section class="card p-4 shadow login-card">
-            <h3 class="text-center text-primary mb-4">Ingreso al Sistema</h3>
-            <form id="loginForm" novalidate>
-              <div class="mb-3">
-                <label for="usuario" class="form-label">Usuario</label>
-                <input type="text" class="form-control" id="usuario" required>
-              </div>
-              <div class="mb-3">
-                <label for="contrasena" class="form-label">Contraseña</label>
-                <input type="password" class="form-control" id="contrasena" required>
-              </div>
-
-              <div id="mensajeError" class="text-danger mb-3 d-none">
-                Usuario o contraseña incorrectos.
-              </div>
-
-              <button type="submit" class="btn btn-primary w-100">Ingresar</button>
-            </form>
-
-            <div class="mt-3 text-center">
-              <button type="button" class="btn btn-link p-0" id="recordarBtn">¿Olvidaste tu contraseña?</button>
-            </div>
-
-            <div id="mensajeRecuperacion" class="alert alert-success mt-3 d-none">
-              Se ha enviado un enlace de recuperación al correo electrónico registrado.
-            </div>
-          </section>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <div id="appContent" class="d-none">
+﻿  <div id="appContent">
     <div class="container my-4">
       <div class="d-flex justify-content-end mb-3">
         <button type="button" class="btn btn-outline-danger btn-sm" id="btnLogout">Cerrar sesión</button>
       </div>
-      <section aria-label="Plantillas disciplinarias">
+
+      <!-- SECCIÓN 1: SELECCIÓN DE ESTUDIANTE Y GESTIÓN -->
+      <section id="seccionEstudiantes" aria-label="Selección y gestión de estudiantes" class="">
+        <div class="container">
+          <div class="row">
+            <!-- Columna izquierda: Buscar y seleccionar estudiante -->
+            <div class="col-lg-7">
+              <div class="card p-4 shadow-sm">
+                <h3 class="text-primary mb-4">Seleccionar Estudiante</h3>
+                
+                <div class="mb-3">
+                  <label for="buscarEstudiante" class="form-label fw-bold">Buscar estudiante:</label>
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    id="buscarEstudiante" 
+                    placeholder="Escribe nombre, apellido o matrícula..."
+                  >
+                </div>
+
+                <div class="mb-3">
+                  <label for="selectEstudiante" class="form-label fw-bold">Lista de estudiantes:</label>
+                  <select class="form-select form-select-lg" id="selectEstudiante">
+                    <option value="">Selecciona un estudiante...</option>
+                  </select>
+                </div>
+
+                <div id="infoEstudiante" class="alert alert-info d-none" role="alert">
+                  <strong>Estudiante seleccionado:</strong><br>
+                  <span id="nombreEstudianteSeleccionado"></span><br>
+                  <small class="text-muted">Matrícula: <span id="matriculaEstudianteSeleccionado"></span></small>
+                </div>
+
+                <div id="historialEstudianteContainer" class="mt-3 card" style="display: none;">
+                  <div class="card-body">
+                    <details id="historialEstudianteDetalles" class="historial-details" open>
+                      <summary aria-controls="historialEstudiantePanel">
+                        <span class="historial-details-title">Historial disciplinario</span>
+                        <span class="historial-details-icon" aria-hidden="true">?</span>
+                      </summary>
+                    <div id="historialEstudiantePanel" class="historial-scroll">
+                      <div id="historialEstudianteLista" class="list-group list-group-flush"></div>
+                      <p id="historialEstudianteEmpty" class="text-muted small mt-2 mb-0 d-none">
+                        No hay registros previos.
+                      </p>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        id="btnImprimirHistorialSeleccionados"
+                        disabled
+                      >
+                        Imprimir seleccionados
+                      </button>
+                    </div>
+                  </details>
+                </div>
+              </div>
+
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-primary btn-lg" id="btnSiguienteEstudiante">
+                    Siguiente ?
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Columna derecha: Agregar/Editar estudiantes -->
+            <div class="col-lg-5">
+              <div class="card p-4 shadow-sm">
+                <h4 class="text-success mb-4">Gestionar Estudiantes</h4>
+                
+                <form id="formEstudiante" class="mb-4" autocomplete="off">
+                  <div class="mb-3">
+                    <label for="nombres" class="form-label">Nombre:</label>
+                    <input type="text" class="form-control" id="nombres" placeholder="*****" autocomplete="off" required>
+                  </div>
+                  <div class="mb-3">
+                    <label for="apellidos" class="form-label">Apellido:</label>
+                    <input type="text" class="form-control" id="apellidos" placeholder="*****" autocomplete="off" required>
+                  </div>
+                  <div class="mb-3">
+                    <label for="matricula" class="form-label">Número de Matrícula:</label>
+                    <input type="text" class="form-control" id="matricula" placeholder="*****" autocomplete="off" required>
+                  </div>
+                  <button type="submit" class="btn btn-success w-100">Agregar Estudiante</button>
+                  <button type="button" class="btn btn-warning w-100 mt-2 d-none" id="btnActualizarEstudiante">
+                    Actualizar Estudiante
+                  </button>
+                  <button type="button" class="btn btn-secondary w-100 mt-2 d-none" id="btnCancelarEdicion">
+                    Cancelar
+                  </button>
+                </form>
+
+                <div id="listaEstudiantesGestion" class="border rounded p-3" style="max-height: 250px; overflow-y: auto;">
+                  <small class="text-muted">Estudiantes recientes...</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 2: PLANTILLAS DISCIPLINARIAS -->
+      <section id="seccionPlantillas" aria-label="Plantillas disciplinarias" class="d-none">
         <div class="text-center mb-4">
           <h2 class="fw-bold text-uppercase text-primary">Plantillas Disciplinarias</h2>
           <p class="text-muted">Registro de observaciones según el tipo de falta cometida por el estudiante.</p>
@@ -123,7 +174,7 @@
                   <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula6"><label class="form-check-label" for="tipo2aula6">Evade clase, quedándose por fuera del aula, poniendo en riesgo su integridad y afectando otras actividades.</label></div>
                   <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula7"><label class="form-check-label" for="tipo2aula7">No justifica por escrito su ausencia o retardo a clase.</label></div>
                   <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula8"><label class="form-check-label" for="tipo2aula8">Se presenta sin materiales requeridos, interrumpiendo el desarrollo de las clases.</label></div>
-                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula9"><label class="form-check-label" for="tipo2aula9">Esconde o saca útiles escolares de la maleta de sus compañeros (“Tortugazo”).</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="tipo2aula9"><label class="form-check-label" for="tipo2aula9">Esconde o saca útiles escolares de la maleta de sus compañeros ("Tortugazo").</label></div>
                 </div>
 
                 <h5 class="text-success mt-4 mb-3">EVENTOS DE LLAMADO DE ATENCIÓN EN RELACIÓN A COMPORTAMIENTOS INADECUADOS EN ESPACIOS INSTITUCIONALES</h5>
@@ -197,7 +248,6 @@
           <div class="mt-4 d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-success" id="btnGuardarSeleccion">Guardar selección</button>
             <button type="button" class="btn btn-primary" id="btnGenerarReporte">Generar reporte</button>
-            <button type="button" class="btn btn-secondary" id="btnImprimir">Imprimir</button>
           </div>
 
           <div id="reporteGenerado" class="mt-4 p-3 border border-info rounded bg-light d-none">
@@ -205,10 +255,21 @@
             <ul id="listaReporte" class="mb-0"></ul>
           </div>
         </div>
+
+        <!-- Botones de navegación para plantillas -->
+        <div class="mt-4 d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-secondary" id="btnAtrasPlantillas">
+            ? Atrás
+          </button>
+          <button type="button" class="btn btn-primary" id="btnSiguientePlantillas">
+            Siguiente ?
+          </button>
+        </div>
       </section>
     </div>
 
-    <section id="estimulos" class="container my-5">
+    <!-- SECCIÓN 3: ESTÍMULOS -->
+    <section id="seccionEstimulos" class="container my-5 d-none">
       <div class="text-center mb-4">
         <h2 class="text-success fw-bold text-uppercase">Plantillas de Estímulos</h2>
         <p class="text-muted fs-5">ESTÍMULOS</p>
@@ -237,40 +298,109 @@
         <div class="mt-4 d-flex flex-wrap gap-2">
           <button type="button" class="btn btn-success" id="btnGuardarEstimulos">Guardar selección</button>
           <button type="button" class="btn btn-primary" id="btnReporteEstimulos">Generar reporte</button>
-          <button type="button" class="btn btn-secondary" id="btnImprimirEstimulos">Imprimir</button>
         </div>
 
         <div id="reporteEstimulos" class="mt-4 p-3 border border-success rounded bg-light d-none">
-          <h5>🎓 Estímulos seleccionados:</h5>
+          <h5>Estímulos seleccionados:</h5>
           <ul id="listaEstimulos" class="mb-0"></ul>
+        </div>
+
+        <!-- Botones de navegación para estímulos -->
+        <div class="mt-4 d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-secondary" id="btnAtrasEstimulos">
+            ? Atrás
+          </button>
+          <button type="button" class="btn btn-primary" id="btnSiguienteAcudiente">
+            Siguiente ?
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 4: PERFIL DEL ACUDIENTE -->
+    <section id="seccionAcudiente" class="container my-5 d-none">
+      <div class="text-center mb-4">
+        <h2 class="text-primary fw-bold text-uppercase">Perfil del Acudiente</h2>
+        <p class="text-muted fs-5">Notificación y correo del informe disciplinario</p>
+      </div>
+
+      <div class="card p-4 shadow-sm">
+        <div class="alert alert-info">
+          <strong>Estudiante:</strong>
+          <span id="acudienteNombreEstudiante">Sin selección</span>
+          <br>
+          <small class="text-muted">Matrícula: <span id="acudienteMatriculaEstudiante">N/A</span></small>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="acudienteNombre" class="form-label">Nombre del acudiente</label>
+            <input type="text" class="form-control" id="acudienteNombre" placeholder="Nombre completo del acudiente">
+          </div>
+          <div class="col-md-6">
+            <label for="acudienteParentesco" class="form-label">Parentesco</label>
+            <select class="form-select" id="acudienteParentesco">
+              <option value="">Selecciona...</option>
+              <option value="Madre">Madre</option>
+              <option value="Padre">Padre</option>
+              <option value="Abuela">Abuela</option>
+              <option value="Abuelo">Abuelo</option>
+              <option value="Tía">Tía</option>
+              <option value="Tío">Tío</option>
+              <option value="Acudiente legal">Acudiente legal</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="acudienteTelefono" class="form-label">Teléfono</label>
+            <input type="text" class="form-control" id="acudienteTelefono" placeholder="Ej. 3001234567">
+          </div>
+          <div class="col-md-6">
+            <label for="acudienteCorreo" class="form-label">Correo electrónico</label>
+            <input type="email" class="form-control" id="acudienteCorreo" placeholder="acudiente@correo.com">
+          </div>
+          <div class="col-12">
+            <label for="acudienteDireccion" class="form-label">Dirección (opcional)</label>
+            <input type="text" class="form-control" id="acudienteDireccion" placeholder="Dirección del acudiente">
+          </div>
+        </div>
+
+        <div class="mt-4 d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-success" id="btnGuardarAcudiente">Guardar perfil acudiente</button>
+        </div>
+
+        <div id="acudienteLoading" class="alert alert-info mt-3 d-none">
+          Cargando información del acudiente…
+        </div>
+
+        <div class="mt-3">
+          <label for="asuntoNotificacionAcudiente" class="form-label">Asunto del correo/notificación</label>
+          <input type="text" class="form-control" id="asuntoNotificacionAcudiente" value="Informe disciplinario del estudiante">
+        </div>
+
+        <div class="mt-3">
+          <label for="notificacionAcudienteTexto" class="form-label">Contenido de notificación</label>
+          <textarea class="form-control" id="notificacionAcudienteTexto" rows="8" placeholder="Aquí se generará la notificación para el acudiente..."></textarea>
+        </div>
+
+        <div class="mt-4">
+          <button type="button" class="btn btn-primary w-100" id="btnGuardarRegistro">
+            Guardar informe disciplinario
+          </button>
+        </div>
+
+        <div class="mt-4 d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-secondary" id="btnAtrasAcudiente">
+            ? Atrás
+          </button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary" id="btnEnviarCorreoAcudiente">Enviar al correo electrónico</button>
+            <button type="button" class="btn btn-primary" id="btnVolverInicio">
+              Volver al inicio
+            </button>
+          </div>
         </div>
       </div>
     </section>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="js/script.js"></script>
-  <!-- Chatbot burbuja (único) -->
-  <div id="chatbot-bubble" aria-hidden="false" title="Abrir asistente virtual">💬</div>
-
-  <div id="chatbot-window" role="dialog" aria-label="Asistente Virtual">
-    <div id="chatbot-header">
-      Asistente Virtual 
-      <button class="close-btn" id="chatbot-close" aria-label="Cerrar chat" title="Cerrar (Esc)">✖</button>
-    </div>
-    <div id="chatbot-messages" aria-live="polite" aria-label="Historial de conversación"></div>
-    <div id="chatbot-input-area">
-      <input 
-        type="text" 
-        id="chatbot-input" 
-        placeholder="Escribe tu mensaje..." 
-        aria-label="Campo de entrada de mensajes"
-      >
-      <button id="chatbot-send" title="Enviar mensaje (Enter)">Enviar</button>
-    </div>
-  </div>
-
-  <link rel="stylesheet" href="chatbot/chatbot.css">
-  <script src="chatbot/chatbot.js" defer></script>
-</body>
-</html>

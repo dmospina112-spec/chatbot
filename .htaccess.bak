@@ -3,8 +3,6 @@ Options -Indexes
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    # Permitir el acceso directo a verificar.php sin administración de rutas.
-    RewriteRule ^verificar\.php$ - [L]
 </IfModule>
 
 # CORS para uso de la API desde la misma instalación
@@ -35,6 +33,6 @@ Options -Indexes
     Require all denied
 </Files>
 
-<FilesMatch "^database.*\.sql$">
+<FilesMatch "^database.*\\.sql$">
     Require all denied
 </FilesMatch>

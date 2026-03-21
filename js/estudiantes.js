@@ -916,6 +916,10 @@ async function guardarAcudiente(mostrarAlertas = true) {
       alert(result.message || 'Perfil del acudiente guardado.');
     }
 
+    if (result.data) {
+      llenarFormularioAcudiente(result.data);
+    }
+
     guardarBorradorAcudienteLocal();
     return result;
   } catch (error) {

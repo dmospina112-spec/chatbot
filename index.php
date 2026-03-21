@@ -76,7 +76,7 @@
               </div>
 
               <button type="submit" class="btn btn-success w-100">Crear cuenta</button>
-              <button type="button" class="btn btn-link w-100 mt-2" id="switchToLogin">
+              <button type="button" class="btn btn-success w-100 mt-2" id="switchToLogin">
                 Volver al inicio
               </button>
 

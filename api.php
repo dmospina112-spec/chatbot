@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/bootstrap_db.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -45,15 +45,6 @@ function normalizeText($value): string
     }
 
     return $text;
-}
-
-function ensureConnectionAlive(mysqli $conn): mysqli
-{
-    if (@$conn->ping()) {
-        return $conn;
-    }
-
-    return getDbConnection();
 }
 
 function normalizeComparisonKey(string $value): string
@@ -1026,10 +1017,24 @@ function guardarAcudiente(mysqli $conn, array $data): void
     $row = $result ? $result->fetch_assoc() : null;
     $query->close();
 
+    $savedData = null;
+    if ($row) {
+        $savedData = [
+            'id' => (int) ($row['id'] ?? 0),
+            'estudiante_id' => (int) ($row['estudiante_id'] ?? 0),
+            'nombre' => normalizeText($row['nombre'] ?? ''),
+            'parentesco' => normalizeText($row['parentesco'] ?? ''),
+            'telefono' => normalizeText($row['telefono'] ?? ''),
+            'correo' => normalizeText($row['correo'] ?? ''),
+            'direccion' => normalizeText($row['direccion'] ?? ''),
+        ];
+    }
+
     jsonResponse(200, [
         'success' => true,
         'message' => 'Perfil del acudiente guardado correctamente.',
-        'id' => (int) ($row['id'] ?? 0),
+        'id' => $savedData['id'] ?? 0,
+        'data' => $savedData,
     ]);
 }
 
@@ -1682,8 +1687,7 @@ function guardarRegistro(mysqli $conn, array $data): void
 
 try {
     ensureDatabaseReady();
-    $conn = getDbConnection();
-    $conn = ensureConnectionAlive($conn);
+    $conn = conectarDB();
 } catch (Throwable $exception) {
     jsonResponse(500, [
         'success' => false,

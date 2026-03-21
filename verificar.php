@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/bootstrap_db.php';
 
 mysqli_report(MYSQLI_REPORT_OFF);
@@ -63,10 +64,16 @@ if ($hasMysqli) {
         ];
 
         if ($dbExists) {
-            $connDb = @new mysqli($cfg['host'], $cfg['user'], $cfg['pass'], $dbName, $cfg['port']);
-            if (!$connDb->connect_error) {
-                $connDb->set_charset('utf8mb4');
+            $connDb = null;
+            $connectionError = null;
+            try {
+                $connDb = conectarDB();
+            } catch (Throwable $exception) {
+                $connectionError = $exception->getMessage();
+                $connDb = null;
+            }
 
+            if ($connDb instanceof mysqli) {
                 foreach (['docentes', 'estudiantes', 'registros_disciplinarios', 'acudientes', 'notificaciones_acudiente'] as $table) {
                     $result = $connDb->query("SHOW TABLES LIKE '{$table}'");
                     $exists = $result && $result->num_rows > 0;
@@ -99,7 +106,7 @@ if ($hasMysqli) {
                 $checks[] = [
                     'label' => "Conexion a {$dbName}",
                     'ok' => false,
-                    'value' => $connDb->connect_error,
+                    'value' => $connectionError ?: 'No se pudo conectar a la base de datos.',
                 ];
             }
         }
@@ -138,13 +145,6 @@ $checks[] = [
         ? 'Todas las carpetas requeridas existen'
         : 'Faltan: ' . implode(', ', $missingFolders),
 ];
-
-if ($connDb instanceof mysqli) {
-    try {
-        $connDb->close();
-    } catch (Throwable $_) {
-    }
-}
 
 if ($connServer instanceof mysqli) {
     $sameConnection = $connDb instanceof mysqli

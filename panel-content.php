@@ -39,9 +39,9 @@
                 <div id="historialEstudianteContainer" class="mt-3 card" style="display: none;">
                   <div class="card-body">
                     <details id="historialEstudianteDetalles" class="historial-details" open>
-                      <summary aria-controls="historialEstudiantePanel">
+                      <summary aria-controls="historialEstudiantePanel" class="d-flex align-items-center gap-2">
                         <span class="historial-details-title">Historial disciplinario</span>
-                        <span class="historial-details-icon" aria-hidden="true">?</span>
+                        <span class="historial-details-icon fw-bold" aria-hidden="true">&#8594;</span>
                       </summary>
                     <div id="historialEstudiantePanel" class="historial-scroll">
                       <div id="historialEstudianteLista" class="list-group list-group-flush"></div>
@@ -64,8 +64,13 @@
               </div>
 
                 <div class="d-flex gap-2">
-                  <button type="button" class="btn btn-primary btn-lg" id="btnSiguienteEstudiante">
-                    Siguiente ?
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-lg d-flex align-items-center justify-content-center gap-2"
+                    id="btnSiguienteEstudiante"
+                  >
+                    <span>Siguiente</span>
+                    <span aria-hidden="true" class="fw-bold">&#8594;</span>
                   </button>
                 </div>
               </div>
@@ -258,11 +263,21 @@
 
         <!-- Botones de navegación para plantillas -->
         <div class="mt-4 d-flex justify-content-between">
-          <button type="button" class="btn btn-outline-secondary" id="btnAtrasPlantillas">
-            ? Atrás
+          <button
+            type="button"
+            class="btn btn-success d-flex align-items-center gap-2"
+            id="btnAtrasPlantillas"
+          >
+            <span aria-hidden="true" class="fw-bold">&#8592;</span>
+            <span>Atrás</span>
           </button>
-          <button type="button" class="btn btn-primary" id="btnSiguientePlantillas">
-            Siguiente ?
+          <button
+            type="button"
+            class="btn btn-primary d-flex align-items-center gap-2"
+            id="btnSiguientePlantillas"
+          >
+            <span>Siguiente</span>
+            <span aria-hidden="true" class="fw-bold">&#8594;</span>
           </button>
         </div>
       </section>
@@ -307,11 +322,21 @@
 
         <!-- Botones de navegación para estímulos -->
         <div class="mt-4 d-flex justify-content-between">
-          <button type="button" class="btn btn-outline-secondary" id="btnAtrasEstimulos">
-            ? Atrás
+          <button
+            type="button"
+            class="btn btn-success d-flex align-items-center gap-2"
+            id="btnAtrasEstimulos"
+          >
+            <span aria-hidden="true" class="fw-bold">&#8592;</span>
+            <span>Atrás</span>
           </button>
-          <button type="button" class="btn btn-primary" id="btnSiguienteAcudiente">
-            Siguiente ?
+          <button
+            type="button"
+            class="btn btn-primary d-flex align-items-center gap-2"
+            id="btnSiguienteAcudiente"
+          >
+            <span>Siguiente</span>
+            <span aria-hidden="true" class="fw-bold">&#8594;</span>
           </button>
         </div>
       </div>
@@ -390,13 +415,22 @@
         </div>
 
         <div class="mt-4 d-flex justify-content-between">
-          <button type="button" class="btn btn-outline-secondary" id="btnAtrasAcudiente">
-            ? Atrás
+          <button
+            type="button"
+            class="btn btn-success d-flex align-items-center gap-2"
+            id="btnAtrasAcudiente"
+          >
+            <span aria-hidden="true" class="fw-bold">&#8592;</span>
+            <span>Atrás</span>
           </button>
           <div class="d-flex gap-2">
-            <button type="button" class="btn btn-primary" id="btnEnviarCorreoAcudiente">Enviar al correo electrónico</button>
-            <button type="button" class="btn btn-primary" id="btnVolverInicio">
-              Volver al inicio
+            <button type="button" class="btn btn-primary d-flex align-items-center gap-2" id="btnEnviarCorreoAcudiente">
+              <span>Enviar al correo electrónico</span>
+              <span aria-hidden="true" class="fw-bold">&#8594;</span>
+            </button>
+            <button type="button" class="btn btn-success d-flex align-items-center gap-2" id="btnVolverInicio">
+              <span>Volver al inicio</span>
+              <span aria-hidden="true" class="fw-bold">&#8594;</span>
             </button>
           </div>
         </div>

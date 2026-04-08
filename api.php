@@ -5,6 +5,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/bootstrap_db.php';
 
+ini_set('display_errors', '0');
+ini_set('html_errors', '0');
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -15,7 +22,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-mysqli_report(MYSQLI_REPORT_OFF);
+if (!extension_loaded('mysqli')) {
+    jsonResponse(500, [
+        'success' => false,
+        'error' => 'La extensión mysqli no está habilitada en PHP. Inicia la app con el PHP de XAMPP o activa mysqli en tu entorno actual.',
+    ]);
+}
+
+if (function_exists('mysqli_report')) {
+    mysqli_report(MYSQLI_REPORT_OFF);
+}
 
 function jsonResponse(int $statusCode, array $payload): void
 {
@@ -47,6 +63,285 @@ function normalizeText($value): string
     return $text;
 }
 
+function normalizeEmailAddress($value): string
+{
+    return strtolower(trim((string) $value));
+}
+
+function encodeMimeHeaderValue(string $value): string
+{
+    if ($value === '') {
+        return '';
+    }
+
+    if (preg_match('/^[\x20-\x7E]+$/', $value) === 1) {
+        return $value;
+    }
+
+    return '=?UTF-8?B?' . base64_encode($value) . '?=';
+}
+
+function formatMailboxHeader(string $email, string $name = ''): string
+{
+    if ($name === '') {
+        return $email;
+    }
+
+    return encodeMimeHeaderValue($name) . " <{$email}>";
+}
+
+function getMailTransportConfig(): array
+{
+    $from = normalizeEmailAddress(getenv('MAIL_FROM') ?: '');
+    $fromName = normalizeText(getenv('MAIL_FROM_NAME') ?: '');
+    $host = normalizeText(getenv('SMTP_HOST') ?: '');
+    $port = (int) (getenv('SMTP_PORT') ?: 0);
+    $username = normalizeText(getenv('SMTP_USERNAME') ?: '');
+    $password = (string) (getenv('SMTP_PASSWORD') ?: '');
+    $encryption = strtolower(normalizeText(getenv('SMTP_ENCRYPTION') ?: ''));
+    $timeout = (int) (getenv('SMTP_TIMEOUT') ?: 15);
+    $heloDomain = normalizeText(getenv('SMTP_HELO_DOMAIN') ?: '');
+
+    // Atajo práctico para Gmail si el remitente pertenece a ese dominio.
+    if ($host === '' && preg_match('/@gmail\.com$/i', $from) === 1) {
+        $host = 'smtp.gmail.com';
+        if ($port <= 0) {
+            $port = 587;
+        }
+        if ($encryption === '') {
+            $encryption = 'tls';
+        }
+    }
+
+    if ($from !== '' && $username === '' && !in_array(strtolower($host), ['localhost', '127.0.0.1'], true)) {
+        $username = $from;
+    }
+
+    if ($port <= 0) {
+        if ($encryption === 'ssl') {
+            $port = 465;
+        } elseif ($host !== '') {
+            $port = 587;
+        } else {
+            $port = 25;
+        }
+    }
+
+    if ($heloDomain === '') {
+        $heloDomain = normalizeText(parse_url((string) ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST) ?: '');
+    }
+    if ($heloDomain === '') {
+        $heloDomain = normalizeText(gethostname() ?: '');
+    }
+    if ($heloDomain === '') {
+        $heloDomain = 'localhost';
+    }
+
+    return [
+        'from' => $from,
+        'from_name' => $fromName,
+        'host' => $host,
+        'port' => $port,
+        'username' => $username,
+        'password' => $password,
+        'encryption' => in_array($encryption, ['', 'tls', 'ssl'], true) ? $encryption : '',
+        'timeout' => $timeout > 0 ? $timeout : 15,
+        'helo_domain' => $heloDomain,
+    ];
+}
+
+function validateMailTransportConfig(array $config): void
+{
+    if ($config['from'] === '' || !filter_var($config['from'], FILTER_VALIDATE_EMAIL)) {
+        throw new RuntimeException('Configura MAIL_FROM con un correo válido en .env para enviar emails.');
+    }
+
+    if ($config['host'] === '') {
+        throw new RuntimeException('Configura SMTP_HOST en .env para enviar correos reales desde el sistema.');
+    }
+
+    if ($config['port'] <= 0) {
+        throw new RuntimeException('Configura SMTP_PORT con un puerto SMTP válido en .env.');
+    }
+
+    $host = strtolower((string) $config['host']);
+    $esServidorLocal = in_array($host, ['localhost', '127.0.0.1'], true);
+    $requiereAuth = !$esServidorLocal || $config['username'] !== '' || $config['password'] !== '';
+
+    if ($requiereAuth && $config['username'] === '') {
+        throw new RuntimeException('Configura SMTP_USERNAME en .env para autenticar el envío de correos.');
+    }
+
+    if ($requiereAuth && $config['password'] === '') {
+        throw new RuntimeException('Configura SMTP_PASSWORD en .env para autenticar el envío de correos.');
+    }
+}
+
+function smtpReadResponse($socket): string
+{
+    $response = '';
+
+    while (!feof($socket)) {
+        $line = fgets($socket, 515);
+        if ($line === false) {
+            break;
+        }
+
+        $response .= $line;
+
+        if (preg_match('/^\d{3}\s/', $line) === 1) {
+            break;
+        }
+    }
+
+    $meta = stream_get_meta_data($socket);
+    if (($meta['timed_out'] ?? false) === true) {
+        throw new RuntimeException('El servidor SMTP no respondió a tiempo.');
+    }
+
+    $response = trim($response);
+    if ($response === '') {
+        throw new RuntimeException('No hubo respuesta del servidor SMTP.');
+    }
+
+    return $response;
+}
+
+function smtpSendCommand($socket, string $command, array $expectedCodes, string $label): string
+{
+    $written = fwrite($socket, $command . "\r\n");
+    if ($written === false) {
+        throw new RuntimeException("No se pudo enviar el comando SMTP {$label}.");
+    }
+
+    $response = smtpReadResponse($socket);
+    $code = (int) substr($response, 0, 3);
+
+    if (!in_array($code, $expectedCodes, true)) {
+        throw new RuntimeException("Error SMTP en {$label}: {$response}");
+    }
+
+    return $response;
+}
+
+function buildSmtpMessage(string $to, string $subject, string $body, array $config): string
+{
+    $body = str_replace(["\r\n", "\r"], "\n", $body);
+    $body = preg_replace("/(?m)^\./", '..', $body);
+    $bodyEncoded = rtrim(chunk_split(base64_encode($body), 76, "\r\n"));
+
+    $headers = [
+        'Date: ' . date('r'),
+        'From: ' . formatMailboxHeader($config['from'], $config['from_name']),
+        'To: ' . formatMailboxHeader($to),
+        'Reply-To: ' . formatMailboxHeader($config['from'], $config['from_name']),
+        'Subject: ' . encodeMimeHeaderValue($subject),
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Transfer-Encoding: base64',
+        'X-Mailer: App Educativa SMTP',
+    ];
+
+    return implode("\r\n", $headers) . "\r\n\r\n" . $bodyEncoded . "\r\n";
+}
+
+function sendEmailUsingSmtp(string $to, string $subject, string $body, array $config): void
+{
+    validateMailTransportConfig($config);
+
+    $scheme = $config['encryption'] === 'ssl' ? 'ssl://' : '';
+    $context = stream_context_create([
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+            'allow_self_signed' => false,
+            'crypto_method' => STREAM_CRYPTO_METHOD_TLS_CLIENT,
+        ],
+    ]);
+
+    $socket = @stream_socket_client(
+        $scheme . $config['host'] . ':' . $config['port'],
+        $errno,
+        $errstr,
+        $config['timeout'],
+        STREAM_CLIENT_CONNECT,
+        $context
+    );
+
+    if (!$socket) {
+        throw new RuntimeException(
+            'No se pudo conectar con el servidor SMTP '
+            . $config['host']
+            . ':'
+            . $config['port']
+            . ' ('
+            . ($errstr !== '' ? $errstr : 'sin detalle')
+            . ').'
+        );
+    }
+
+    stream_set_timeout($socket, $config['timeout']);
+
+    try {
+        $greeting = smtpReadResponse($socket);
+        if ((int) substr($greeting, 0, 3) !== 220) {
+            throw new RuntimeException('El servidor SMTP rechazó la conexión inicial: ' . $greeting);
+        }
+
+        smtpSendCommand($socket, 'EHLO ' . $config['helo_domain'], [250], 'EHLO');
+
+        if ($config['encryption'] === 'tls') {
+            smtpSendCommand($socket, 'STARTTLS', [220], 'STARTTLS');
+
+            $cryptoEnabled = @stream_socket_enable_crypto(
+                $socket,
+                true,
+                STREAM_CRYPTO_METHOD_TLS_CLIENT
+            );
+
+            if ($cryptoEnabled !== true) {
+                throw new RuntimeException('No se pudo iniciar el canal TLS con el servidor SMTP.');
+            }
+
+            smtpSendCommand($socket, 'EHLO ' . $config['helo_domain'], [250], 'EHLO posterior a STARTTLS');
+        }
+
+        if ($config['username'] !== '' || $config['password'] !== '') {
+            smtpSendCommand($socket, 'AUTH LOGIN', [334], 'AUTH LOGIN');
+            smtpSendCommand($socket, base64_encode($config['username']), [334], 'SMTP username');
+            smtpSendCommand($socket, base64_encode($config['password']), [235], 'SMTP password');
+        }
+
+        smtpSendCommand($socket, 'MAIL FROM:<' . $config['from'] . '>', [250], 'MAIL FROM');
+        smtpSendCommand($socket, 'RCPT TO:<' . $to . '>', [250, 251], 'RCPT TO');
+        smtpSendCommand($socket, 'DATA', [354], 'DATA');
+
+        $message = buildSmtpMessage($to, $subject, $body, $config);
+        $written = fwrite($socket, $message . "\r\n.\r\n");
+        if ($written === false) {
+            throw new RuntimeException('No se pudo enviar el contenido del mensaje SMTP.');
+        }
+
+        $response = smtpReadResponse($socket);
+        $code = (int) substr($response, 0, 3);
+        if ($code !== 250) {
+            throw new RuntimeException('El servidor SMTP rechazó el mensaje: ' . $response);
+        }
+
+        smtpSendCommand($socket, 'QUIT', [221], 'QUIT');
+    } finally {
+        fclose($socket);
+    }
+}
+
+function normalizeUsername($value): string
+{
+    $username = strtolower(trim((string) $value));
+    $username = preg_replace('/\s+/', '', $username);
+
+    return is_string($username) ? $username : '';
+}
+
 function normalizeComparisonKey(string $value): string
 {
     $text = trim(mb_strtoupper($value, 'UTF-8'));
@@ -63,6 +358,368 @@ function normalizeComparisonKey(string $value): string
     $text = preg_replace('/\s+/', ' ', (string) $text);
 
     return trim((string) $text);
+}
+
+function normalizeRoleValue($value, bool $allowAdminRole = true): string
+{
+    $role = strtolower(trim((string) $value));
+    $validRoles = $allowAdminRole ? ['docente', 'administrador'] : ['docente'];
+
+    if (!in_array($role, $validRoles, true)) {
+        return 'docente';
+    }
+
+    return $role;
+}
+
+function getSecurityQuestionOptions(): array
+{
+    return [
+        'mascota' => '¿Cuál es el nombre de tu primera mascota?',
+        'escuela' => '¿Cómo se llamaba tu escuela primaria?',
+        'madre' => '¿Cuál es el segundo nombre de tu madre?',
+        'ciudad' => '¿En qué ciudad naciste?',
+        'profesor' => '¿Cuál fue tu profesor favorito?',
+        'amigo' => '¿Cómo se llamaba tu mejor amigo de la infancia?',
+    ];
+}
+
+function normalizeSecurityQuestionCode($value): string
+{
+    $code = strtolower(trim((string) $value));
+    $options = getSecurityQuestionOptions();
+
+    return array_key_exists($code, $options) ? $code : '';
+}
+
+function getSecurityQuestionLabel(string $code): string
+{
+    $options = getSecurityQuestionOptions();
+
+    return (string) ($options[$code] ?? '');
+}
+
+function normalizeSecurityAnswer($value): string
+{
+    $answer = mb_strtolower(normalizeText($value), 'UTF-8');
+    if ($answer === '') {
+        return '';
+    }
+
+    $converted = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $answer);
+    if (is_string($converted) && $converted !== '') {
+        $answer = $converted;
+    }
+
+    $answer = preg_replace('/[^a-z0-9]+/', ' ', $answer);
+    $answer = preg_replace('/\s+/', ' ', (string) $answer);
+
+    return trim((string) $answer);
+}
+
+function validateSecurityQuestionInput(array $data, bool $required = true): array
+{
+    $questionCode = normalizeSecurityQuestionCode($data['pregunta_seguridad'] ?? '');
+    $answer = normalizeSecurityAnswer($data['respuesta_seguridad'] ?? '');
+
+    if ($required && ($questionCode === '' || $answer === '')) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Debes seleccionar una pregunta de seguridad y escribir su respuesta.',
+        ]);
+    }
+
+    if (($questionCode !== '' || $answer !== '') && mb_strlen($answer, 'UTF-8') < 3) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'La respuesta de seguridad debe tener al menos 3 caracteres.',
+        ]);
+    }
+
+    return [
+        'pregunta_seguridad' => $questionCode,
+        'respuesta_seguridad' => $answer,
+    ];
+}
+
+function resolveDocenteRole(array $row): string
+{
+    $role = normalizeRoleValue($row['rol'] ?? '', true);
+    if ($role !== 'docente' || (($row['usuario'] ?? '') !== 'admin')) {
+        return $role;
+    }
+
+    return 'administrador';
+}
+
+function buildAuthUserPayload(array $row): array
+{
+    return [
+        'id' => (int) ($row['id'] ?? 0),
+        'usuario' => (string) ($row['usuario'] ?? ''),
+        'nombre' => (string) ($row['nombre'] ?? ''),
+        'apellido' => (string) ($row['apellido'] ?? ''),
+        'rol' => resolveDocenteRole($row),
+    ];
+}
+
+function storeAuthenticatedUserSession(array $user, bool $regenerateId = false): void
+{
+    if ($regenerateId && session_status() === PHP_SESSION_ACTIVE) {
+        session_regenerate_id(true);
+    }
+
+    $_SESSION['auth_user'] = $user;
+}
+
+function getAuthenticatedUserSession(): ?array
+{
+    $user = $_SESSION['auth_user'] ?? null;
+
+    return is_array($user) ? $user : null;
+}
+
+function clearAuthenticatedUserSession(): void
+{
+    $_SESSION = [];
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return;
+    }
+
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(
+            session_name(),
+            '',
+            time() - 42000,
+            $params['path'] ?? '/',
+            $params['domain'] ?? '',
+            (bool) ($params['secure'] ?? false),
+            (bool) ($params['httponly'] ?? true)
+        );
+    }
+
+    session_destroy();
+}
+
+function requireAdminAccess(): array
+{
+    $user = getAuthenticatedUserSession();
+    if (!$user || ($user['rol'] ?? '') !== 'administrador') {
+        jsonResponse(403, [
+            'success' => false,
+            'error' => 'Debes iniciar sesión como administrador para realizar esta acción.',
+        ]);
+    }
+
+    return $user;
+}
+
+function buildDocenteAdminPayload(array $row, int $currentUserId = 0): array
+{
+    return [
+        'id' => (int) ($row['id'] ?? 0),
+        'usuario' => (string) ($row['usuario'] ?? ''),
+        'nombre' => (string) ($row['nombre'] ?? ''),
+        'apellido' => (string) ($row['apellido'] ?? ''),
+        'correo' => (string) ($row['correo'] ?? ''),
+        'rol' => resolveDocenteRole($row),
+        'activo' => (int) ($row['activo'] ?? 1) === 1,
+        'fecha_registro' => (string) ($row['fecha_registro'] ?? ''),
+        'es_actual' => (int) ($row['id'] ?? 0) === $currentUserId,
+    ];
+}
+
+function findDocenteById(mysqli $conn, int $id): ?array
+{
+    $stmt = $conn->prepare(
+        'SELECT id, usuario, nombre, apellido, correo, rol, activo, fecha_registro
+         FROM docentes
+         WHERE id = ?
+         LIMIT 1'
+    );
+
+    if (!$stmt) {
+        return null;
+    }
+
+    $stmt->bind_param('i', $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    $stmt->close();
+
+    return $row ?: null;
+}
+
+function findDocenteByRecoveryIdentity(mysqli $conn, string $usuario, string $correo): ?array
+{
+    $stmt = $conn->prepare(
+        'SELECT id, usuario, correo, activo, pregunta_seguridad, respuesta_seguridad_hash
+         FROM docentes
+         WHERE usuario = ?
+           AND correo = ?
+         LIMIT 1'
+    );
+
+    if (!$stmt) {
+        return null;
+    }
+
+    $stmt->bind_param('ss', $usuario, $correo);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    $stmt->close();
+
+    return $row ?: null;
+}
+
+function countActiveAdministrators(mysqli $conn, int $excludeId = 0): int
+{
+    $sql = 'SELECT COUNT(*) AS total
+            FROM docentes
+            WHERE activo = 1
+              AND (LOWER(COALESCE(rol, "")) = "administrador" OR usuario = "admin")';
+
+    if ($excludeId > 0) {
+        $sql .= ' AND id <> ?';
+    }
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return 0;
+    }
+
+    if ($excludeId > 0) {
+        $stmt->bind_param('i', $excludeId);
+    }
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    $stmt->close();
+
+    return (int) ($row['total'] ?? 0);
+}
+
+function validateDocenteInput(mysqli $conn, array $data, bool $allowAdminRole, bool $passwordRequired, int $excludeId = 0): array
+{
+    $nombre = normalizeText($data['nombre'] ?? '');
+    $apellido = normalizeText($data['apellido'] ?? '');
+    $usuario = normalizeUsername($data['usuario'] ?? '');
+    $correo = strtolower(normalizeText($data['correo'] ?? ''));
+    $contrasena = (string) ($data['contrasena'] ?? '');
+    $rolSolicitado = normalizeRoleValue($data['rol'] ?? 'docente', $allowAdminRole);
+    $activo = filter_var($data['activo'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+    if ($nombre === '' || $apellido === '' || $usuario === '' || $correo === '') {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Nombre, apellido, usuario y correo son obligatorios.',
+        ]);
+    }
+
+    if (mb_strlen($nombre, 'UTF-8') < 2 || mb_strlen($apellido, 'UTF-8') < 2) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Nombre y apellido deben tener al menos 2 caracteres.',
+        ]);
+    }
+
+    if (!preg_match('/^[a-z0-9._-]{4,30}$/', $usuario)) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'El usuario debe tener entre 4 y 30 caracteres y solo puede usar letras, números, punto, guion y guion bajo.',
+        ]);
+    }
+
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Ingresa un correo electrónico válido.',
+        ]);
+    }
+
+    if ($passwordRequired && $contrasena === '') {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'La contraseña es obligatoria.',
+        ]);
+    }
+
+    if ($contrasena !== '' && strlen($contrasena) < 8) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'La contraseña debe tener al menos 8 caracteres.',
+        ]);
+    }
+
+    if ($activo === null) {
+        $activo = true;
+    }
+
+    $stmt = $conn->prepare('SELECT id FROM docentes WHERE usuario = ? AND id <> ? LIMIT 1');
+    if (!$stmt) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo validar el usuario.',
+        ]);
+    }
+
+    $stmt->bind_param('si', $usuario, $excludeId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $existingUser = $result ? $result->fetch_assoc() : null;
+    $stmt->close();
+
+    if ($existingUser) {
+        jsonResponse(409, [
+            'success' => false,
+            'error' => 'El usuario ya existe.',
+        ]);
+    }
+
+    $stmt = $conn->prepare('SELECT id FROM docentes WHERE correo = ? AND id <> ? LIMIT 1');
+    if (!$stmt) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo validar el correo.',
+        ]);
+    }
+
+    $stmt->bind_param('si', $correo, $excludeId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $existingEmail = $result ? $result->fetch_assoc() : null;
+    $stmt->close();
+
+    if ($existingEmail) {
+        jsonResponse(409, [
+            'success' => false,
+            'error' => 'El correo electrónico ya está registrado.',
+        ]);
+    }
+
+    return [
+        'nombre' => $nombre,
+        'apellido' => $apellido,
+        'usuario' => $usuario,
+        'correo' => $correo,
+        'contrasena' => $contrasena,
+        'rol' => $rolSolicitado,
+        'activo' => $activo ? 1 : 0,
+    ];
+}
+
+function logoutCurrentSession(): void
+{
+    clearAuthenticatedUserSession();
+    jsonResponse(200, [
+        'success' => true,
+        'message' => 'Sesión cerrada correctamente.',
+    ]);
 }
 
 function readJsonBody(): array
@@ -676,10 +1333,21 @@ function importarPlanillaAcudientes(mysqli $conn): void
 
 function obtenerEstudiantes(mysqli $conn): void
 {
-    $sql = 'SELECT id, nombre, apellido, numero_matricula, activo
-            FROM estudiantes
-            WHERE activo = 1
-            ORDER BY apellido ASC, nombre ASC';
+    $sql = 'SELECT e.id,
+                   e.nombre,
+                   e.apellido,
+                   e.numero_matricula,
+                   e.activo,
+                   a.id AS acudiente_id,
+                   a.nombre AS acudiente_nombre,
+                   a.parentesco AS acudiente_parentesco,
+                   a.telefono AS acudiente_telefono,
+                   a.correo AS acudiente_correo,
+                   a.direccion AS acudiente_direccion
+            FROM estudiantes e
+            LEFT JOIN acudientes a ON a.estudiante_id = e.id
+            WHERE e.activo = 1
+            ORDER BY e.apellido ASC, e.nombre ASC';
 
     $result = $conn->query($sql);
     if (!$result) {
@@ -691,7 +1359,24 @@ function obtenerEstudiantes(mysqli $conn): void
 
     $rows = [];
     while ($row = $result->fetch_assoc()) {
-        $rows[] = $row;
+        $acudienteId = (int) ($row['acudiente_id'] ?? 0);
+        $rows[] = [
+            'id' => (int) ($row['id'] ?? 0),
+            'nombre' => normalizeText($row['nombre'] ?? ''),
+            'apellido' => normalizeText($row['apellido'] ?? ''),
+            'numero_matricula' => normalizeText($row['numero_matricula'] ?? ''),
+            'activo' => (int) ($row['activo'] ?? 0),
+            'acudiente' => $acudienteId > 0
+                ? [
+                    'id' => $acudienteId,
+                    'nombre' => normalizeText($row['acudiente_nombre'] ?? ''),
+                    'parentesco' => normalizeText($row['acudiente_parentesco'] ?? ''),
+                    'telefono' => normalizeText($row['acudiente_telefono'] ?? ''),
+                    'correo' => normalizeText($row['acudiente_correo'] ?? ''),
+                    'direccion' => normalizeText($row['acudiente_direccion'] ?? ''),
+                ]
+                : null,
+        ];
     }
 
     jsonResponse(200, [
@@ -774,7 +1459,7 @@ function obtenerHistorialEstudiante(mysqli $conn): void
                 r.faltas_tipo3,
                 r.estimulos,
                 r.fecha_registro,
-                d.nombre AS docente_nombre
+                TRIM(CONCAT(COALESCE(d.nombre, ""), " ", COALESCE(d.apellido, ""))) AS docente_nombre
          FROM registros_disciplinarios r
          LEFT JOIN docentes d ON d.id = r.docente_id
          WHERE r.estudiante_id = ?
@@ -869,6 +1554,130 @@ function fetchLegacyAcudiente(mysqli $conn, int $estudianteId): ?array
     ];
 }
 
+function normalizeAcudientePayload(array $data): array
+{
+    $source = $data;
+    if (isset($data['acudiente']) && is_array($data['acudiente'])) {
+        $source = $data['acudiente'];
+    }
+
+    return [
+        'nombre' => normalizeText($source['nombre'] ?? ''),
+        'parentesco' => normalizeText($source['parentesco'] ?? ''),
+        'telefono' => normalizeText($source['telefono'] ?? ''),
+        'correo' => normalizeText($source['correo'] ?? ''),
+        'direccion' => normalizeText($source['direccion'] ?? ''),
+    ];
+}
+
+function validateAcudientePayload(array $data, bool $requireName = true): ?string
+{
+    if ($requireName && ($data['nombre'] ?? '') === '') {
+        return 'El nombre del acudiente es obligatorio.';
+    }
+
+    $correo = (string) ($data['correo'] ?? '');
+    if ($correo !== '' && !filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        return 'El correo del acudiente no tiene un formato válido.';
+    }
+
+    return null;
+}
+
+function fetchAcudienteActual(mysqli $conn, int $estudianteId): ?array
+{
+    $stmt = $conn->prepare(
+        'SELECT id, estudiante_id, nombre, parentesco, telefono, correo, direccion
+         FROM acudientes
+         WHERE estudiante_id = ?
+         LIMIT 1'
+    );
+
+    if (!$stmt) {
+        return null;
+    }
+
+    $stmt->bind_param('i', $estudianteId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    $stmt->close();
+
+    if (!$row) {
+        return null;
+    }
+
+    return [
+        'id' => (int) ($row['id'] ?? 0),
+        'estudiante_id' => (int) ($row['estudiante_id'] ?? 0),
+        'nombre' => normalizeText($row['nombre'] ?? ''),
+        'parentesco' => normalizeText($row['parentesco'] ?? ''),
+        'telefono' => normalizeText($row['telefono'] ?? ''),
+        'correo' => normalizeText($row['correo'] ?? ''),
+        'direccion' => normalizeText($row['direccion'] ?? ''),
+    ];
+}
+
+function fetchAcudienteByStudent(mysqli $conn, int $estudianteId): ?array
+{
+    $actual = fetchAcudienteActual($conn, $estudianteId);
+    if ($actual !== null) {
+        return $actual;
+    }
+
+    return fetchLegacyAcudiente($conn, $estudianteId);
+}
+
+function upsertAcudienteByStudent(mysqli $conn, int $estudianteId, array $data): array
+{
+    $stmt = $conn->prepare(
+        'INSERT INTO acudientes (estudiante_id, nombre, parentesco, telefono, correo, direccion)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+            nombre = VALUES(nombre),
+            parentesco = VALUES(parentesco),
+            telefono = VALUES(telefono),
+            correo = VALUES(correo),
+            direccion = VALUES(direccion),
+            updated_at = CURRENT_TIMESTAMP'
+    );
+
+    if (!$stmt) {
+        throw new RuntimeException('No se pudo preparar el guardado del acudiente.');
+    }
+
+    $stmt->bind_param(
+        'isssss',
+        $estudianteId,
+        $data['nombre'],
+        $data['parentesco'],
+        $data['telefono'],
+        $data['correo'],
+        $data['direccion']
+    );
+
+    if (!$stmt->execute()) {
+        $stmt->close();
+        throw new RuntimeException('No se pudo guardar el perfil del acudiente.');
+    }
+    $stmt->close();
+
+    $savedData = fetchAcudienteActual($conn, $estudianteId);
+    if ($savedData !== null) {
+        return $savedData;
+    }
+
+    return [
+        'id' => 0,
+        'estudiante_id' => $estudianteId,
+        'nombre' => $data['nombre'],
+        'parentesco' => $data['parentesco'],
+        'telefono' => $data['telefono'],
+        'correo' => $data['correo'],
+        'direccion' => $data['direccion'],
+    ];
+}
+
 function obtenerAcudiente(mysqli $conn): void
 {
     if (!tableExists($conn, 'acudientes')) {
@@ -893,26 +1702,7 @@ function obtenerAcudiente(mysqli $conn): void
         ]);
     }
 
-    $stmt = $conn->prepare(
-        'SELECT id, estudiante_id, nombre, parentesco, telefono, correo, direccion
-         FROM acudientes
-         WHERE estudiante_id = ?
-         LIMIT 1'
-    );
-
-    if (!$stmt) {
-        jsonResponse(500, [
-            'success' => false,
-            'error' => 'No se pudo consultar el perfil del acudiente.',
-        ]);
-    }
-
-    $stmt->bind_param('i', $estudianteId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $row = $result ? $result->fetch_assoc() : null;
-    $stmt->close();
-
+    $row = fetchAcudienteActual($conn, $estudianteId);
     if (!$row) {
         $legacy = fetchLegacyAcudiente($conn, $estudianteId);
         jsonResponse(200, [
@@ -938,11 +1728,7 @@ function guardarAcudiente(mysqli $conn, array $data): void
     }
 
     $estudianteId = (int) ($data['estudiante_id'] ?? 0);
-    $nombre = normalizeText($data['nombre'] ?? '');
-    $parentesco = normalizeText($data['parentesco'] ?? '');
-    $telefono = normalizeText($data['telefono'] ?? '');
-    $correo = normalizeText($data['correo'] ?? '');
-    $direccion = normalizeText($data['direccion'] ?? '');
+    $acudienteData = normalizeAcudientePayload($data);
 
     if ($estudianteId <= 0) {
         jsonResponse(400, [
@@ -958,76 +1744,21 @@ function guardarAcudiente(mysqli $conn, array $data): void
         ]);
     }
 
-    if ($nombre === '') {
+    $validationError = validateAcudientePayload($acudienteData, true);
+    if ($validationError !== null) {
         jsonResponse(400, [
             'success' => false,
-            'error' => 'El nombre del acudiente es obligatorio.',
+            'error' => $validationError,
         ]);
     }
 
-    if ($correo !== '' && !filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-        jsonResponse(400, [
-            'success' => false,
-            'error' => 'El correo del acudiente no tiene un formato válido.',
-        ]);
-    }
-
-    $stmt = $conn->prepare(
-        'INSERT INTO acudientes (estudiante_id, nombre, parentesco, telefono, correo, direccion)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-            nombre = VALUES(nombre),
-            parentesco = VALUES(parentesco),
-            telefono = VALUES(telefono),
-            correo = VALUES(correo),
-            direccion = VALUES(direccion),
-            updated_at = CURRENT_TIMESTAMP'
-    );
-
-    if (!$stmt) {
+    try {
+        $savedData = upsertAcudienteByStudent($conn, $estudianteId, $acudienteData);
+    } catch (RuntimeException $error) {
         jsonResponse(500, [
             'success' => false,
-            'error' => 'No se pudo preparar el guardado del acudiente.',
+            'error' => $error->getMessage(),
         ]);
-    }
-
-    $stmt->bind_param('isssss', $estudianteId, $nombre, $parentesco, $telefono, $correo, $direccion);
-
-    if (!$stmt->execute()) {
-        $stmt->close();
-        jsonResponse(500, [
-            'success' => false,
-            'error' => 'No se pudo guardar el perfil del acudiente.',
-        ]);
-    }
-    $stmt->close();
-
-    $query = $conn->prepare('SELECT id FROM acudientes WHERE estudiante_id = ? LIMIT 1');
-    if (!$query) {
-        jsonResponse(200, [
-            'success' => true,
-            'message' => 'Perfil del acudiente guardado correctamente.',
-            'id' => 0,
-        ]);
-    }
-
-    $query->bind_param('i', $estudianteId);
-    $query->execute();
-    $result = $query->get_result();
-    $row = $result ? $result->fetch_assoc() : null;
-    $query->close();
-
-    $savedData = null;
-    if ($row) {
-        $savedData = [
-            'id' => (int) ($row['id'] ?? 0),
-            'estudiante_id' => (int) ($row['estudiante_id'] ?? 0),
-            'nombre' => normalizeText($row['nombre'] ?? ''),
-            'parentesco' => normalizeText($row['parentesco'] ?? ''),
-            'telefono' => normalizeText($row['telefono'] ?? ''),
-            'correo' => normalizeText($row['correo'] ?? ''),
-            'direccion' => normalizeText($row['direccion'] ?? ''),
-        ];
     }
 
     jsonResponse(200, [
@@ -1172,21 +1903,12 @@ function enviarCorreoAcudiente(mysqli $conn, array $data): void
         ]);
     }
 
-    $headers = [];
-    $headers[] = 'MIME-Version: 1.0';
-    $headers[] = 'Content-Type: text/plain; charset=UTF-8';
-
-    $from = normalizeText(getenv('MAIL_FROM') ?: '');
-    if ($from !== '' && filter_var($from, FILTER_VALIDATE_EMAIL)) {
-        $headers[] = 'From: ' . $from;
-        $headers[] = 'Reply-To: ' . $from;
-    }
-
-    $ok = @mail($correo, $asunto, $mensaje, implode("\r\n", $headers));
-    if (!$ok) {
+    try {
+        sendEmailUsingSmtp($correo, $asunto, $mensaje, getMailTransportConfig());
+    } catch (Throwable $exception) {
         jsonResponse(500, [
             'success' => false,
-            'error' => 'No se pudo enviar el correo desde el servidor. Revisa la configuración SMTP de PHP.',
+            'error' => $exception->getMessage(),
         ]);
     }
 
@@ -1208,7 +1930,7 @@ function enviarCorreoAcudiente(mysqli $conn, array $data): void
 
 function loginDocente(mysqli $conn, array $data): void
 {
-    $usuario = normalizeText($data['usuario'] ?? '');
+    $usuario = normalizeUsername($data['usuario'] ?? '');
     $contrasena = (string) ($data['contrasena'] ?? '');
 
     if ($usuario === '' || $contrasena === '') {
@@ -1218,12 +1940,7 @@ function loginDocente(mysqli $conn, array $data): void
         ]);
     }
 
-    $query = 'SELECT id, usuario, password, nombre, apellido, rol FROM docentes WHERE usuario = ? AND activo = 1 LIMIT 1';
-    $stmt = $conn->prepare($query);
-
-    if (!$stmt) {
-        $stmt = $conn->prepare('SELECT id, usuario, password, nombre, apellido FROM docentes WHERE usuario = ? LIMIT 1');
-    }
+    $stmt = $conn->prepare('SELECT * FROM docentes WHERE usuario = ? LIMIT 1');
 
     if (!$stmt) {
         jsonResponse(500, [
@@ -1245,7 +1962,14 @@ function loginDocente(mysqli $conn, array $data): void
         ]);
     }
 
-    $storedPassword = (string) $row['password'];
+    if (array_key_exists('activo', $row) && (int) $row['activo'] !== 1) {
+        jsonResponse(401, [
+            'success' => false,
+            'error' => 'La cuenta no está activa.',
+        ]);
+    }
+
+    $storedPassword = (string) ($row['password'] ?? $row['contrasena'] ?? '');
     $isValid = $storedPassword !== '' && (password_verify($contrasena, $storedPassword) || hash_equals($storedPassword, $contrasena));
 
     if (!$isValid) {
@@ -1255,16 +1979,13 @@ function loginDocente(mysqli $conn, array $data): void
         ]);
     }
 
+    $authUser = buildAuthUserPayload($row);
+    storeAuthenticatedUserSession($authUser, true);
+
     jsonResponse(200, [
         'success' => true,
         'message' => 'Ingreso exitoso.',
-        'data' => [
-            'id' => (int) $row['id'],
-            'usuario' => $row['usuario'],
-            'nombre' => $row['nombre'],
-            'apellido' => (string) ($row['apellido'] ?? ''),
-            'rol' => (string) ($row['rol'] ?? 'docente'),
-        ],
+        'data' => $authUser,
     ]);
 }
 
@@ -1272,17 +1993,30 @@ function crearDocente(mysqli $conn, array $data): void
 {
     $nombre = normalizeText($data['nombre'] ?? '');
     $apellido = normalizeText($data['apellido'] ?? '');
-    $usuario = normalizeText($data['usuario'] ?? '');
-    $correo = normalizeText($data['correo'] ?? '');
+    $usuario = normalizeUsername($data['usuario'] ?? '');
+    $correo = strtolower(normalizeText($data['correo'] ?? ''));
     $contrasena = (string) ($data['contrasena'] ?? '');
-    $rol = strtolower(trim((string) ($data['rol'] ?? 'docente')));
-
-    $rolesValidos = ['docente', 'administrador'];
+    $rolSolicitado = strtolower(trim((string) ($data['rol'] ?? 'docente')));
+    $securityInput = validateSecurityQuestionInput($data, true);
 
     if ($nombre === '' || $apellido === '' || $usuario === '' || $correo === '' || $contrasena === '') {
         jsonResponse(400, [
             'success' => false,
             'error' => 'Todos los campos son obligatorios.',
+        ]);
+    }
+
+    if (mb_strlen($nombre, 'UTF-8') < 2 || mb_strlen($apellido, 'UTF-8') < 2) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Nombre y apellido deben tener al menos 2 caracteres.',
+        ]);
+    }
+
+    if (!preg_match('/^[a-z0-9._-]{4,30}$/', $usuario)) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'El usuario debe tener entre 4 y 30 caracteres y solo puede usar letras, números, punto, guion y guion bajo.',
         ]);
     }
 
@@ -1293,8 +2027,18 @@ function crearDocente(mysqli $conn, array $data): void
         ]);
     }
 
-    if (!in_array($rol, $rolesValidos, true)) {
-        $rol = 'docente';
+    if (strlen($contrasena) < 8) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'La contraseña debe tener al menos 8 caracteres.',
+        ]);
+    }
+
+    if ($rolSolicitado !== 'docente') {
+        jsonResponse(403, [
+            'success' => false,
+            'error' => 'El registro público solo permite crear cuentas de docente.',
+        ]);
     }
 
     $stmt = $conn->prepare('SELECT id FROM docentes WHERE usuario = ? LIMIT 1');
@@ -1341,9 +2085,27 @@ function crearDocente(mysqli $conn, array $data): void
         ]);
     }
 
+    $hashedSecurityAnswer = password_hash($securityInput['respuesta_seguridad'], PASSWORD_DEFAULT);
+    if ($hashedSecurityAnswer === false) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo procesar la respuesta de seguridad.',
+        ]);
+    }
+
     $insert = $conn->prepare(
-        'INSERT INTO docentes (usuario, password, nombre, apellido, correo, rol, activo)
-         VALUES (?, ?, ?, ?, ?, ?, 1)'
+        'INSERT INTO docentes (
+            usuario,
+            password,
+            nombre,
+            apellido,
+            correo,
+            pregunta_seguridad,
+            respuesta_seguridad_hash,
+            rol,
+            activo
+        )
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)'
     );
 
     if (!$insert) {
@@ -1353,7 +2115,18 @@ function crearDocente(mysqli $conn, array $data): void
         ]);
     }
 
-    $insert->bind_param('ssssss', $usuario, $hashedPassword, $nombre, $apellido, $correo, $rol);
+    $rol = 'docente';
+    $insert->bind_param(
+        'ssssssss',
+        $usuario,
+        $hashedPassword,
+        $nombre,
+        $apellido,
+        $correo,
+        $securityInput['pregunta_seguridad'],
+        $hashedSecurityAnswer,
+        $rol
+    );
 
     if (!$insert->execute()) {
         $code = $insert->errno;
@@ -1377,6 +2150,407 @@ function crearDocente(mysqli $conn, array $data): void
     jsonResponse(201, [
         'success' => true,
         'message' => 'Cuenta creada correctamente. Ya puedes ingresar.',
+        'data' => [
+            'usuario' => $usuario,
+            'rol' => $rol,
+        ],
+    ]);
+}
+
+function consultarPreguntaSeguridad(mysqli $conn, array $data): void
+{
+    $usuario = normalizeUsername($data['usuario'] ?? '');
+    $correo = strtolower(normalizeText($data['correo'] ?? ''));
+
+    if ($usuario === '' || $correo === '') {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Debes indicar el usuario y el correo registrado.',
+        ]);
+    }
+
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Ingresa un correo electrónico válido.',
+        ]);
+    }
+
+    $row = findDocenteByRecoveryIdentity($conn, $usuario, $correo);
+    if (!$row || (int) ($row['activo'] ?? 0) !== 1) {
+        jsonResponse(404, [
+            'success' => false,
+            'error' => 'No se encontró una cuenta activa con ese usuario y correo.',
+        ]);
+    }
+
+    $questionCode = normalizeSecurityQuestionCode($row['pregunta_seguridad'] ?? '');
+    $answerHash = (string) ($row['respuesta_seguridad_hash'] ?? '');
+
+    if ($questionCode === '' || $answerHash === '') {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Esta cuenta no tiene una pregunta de seguridad configurada. Solicita apoyo al administrador.',
+        ]);
+    }
+
+    jsonResponse(200, [
+        'success' => true,
+        'message' => 'Pregunta de seguridad cargada correctamente.',
+        'data' => [
+            'pregunta' => $questionCode,
+            'pregunta_label' => getSecurityQuestionLabel($questionCode),
+        ],
+    ]);
+}
+
+function recuperarContrasena(mysqli $conn, array $data): void
+{
+    $usuario = normalizeUsername($data['usuario'] ?? '');
+    $correo = strtolower(normalizeText($data['correo'] ?? ''));
+    $respuesta = normalizeSecurityAnswer($data['respuesta_seguridad'] ?? '');
+    $contrasenaNueva = (string) ($data['contrasena_nueva'] ?? '');
+
+    if ($usuario === '' || $correo === '' || $respuesta === '' || $contrasenaNueva === '') {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Debes completar usuario, correo, respuesta de seguridad y nueva contraseña.',
+        ]);
+    }
+
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Ingresa un correo electrónico válido.',
+        ]);
+    }
+
+    if (mb_strlen($respuesta, 'UTF-8') < 3) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'La respuesta de seguridad debe tener al menos 3 caracteres.',
+        ]);
+    }
+
+    if (strlen($contrasenaNueva) < 8) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'La nueva contraseña debe tener al menos 8 caracteres.',
+        ]);
+    }
+
+    $row = findDocenteByRecoveryIdentity($conn, $usuario, $correo);
+    if (!$row || (int) ($row['activo'] ?? 0) !== 1) {
+        jsonResponse(404, [
+            'success' => false,
+            'error' => 'No se encontró una cuenta activa con ese usuario y correo.',
+        ]);
+    }
+
+    $questionCode = normalizeSecurityQuestionCode($row['pregunta_seguridad'] ?? '');
+    $storedAnswer = (string) ($row['respuesta_seguridad_hash'] ?? '');
+    if ($questionCode === '' || $storedAnswer === '') {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Esta cuenta no tiene una pregunta de seguridad configurada. Solicita apoyo al administrador.',
+        ]);
+    }
+
+    $isValidAnswer = password_verify($respuesta, $storedAnswer) || hash_equals($storedAnswer, $respuesta);
+    if (!$isValidAnswer) {
+        jsonResponse(401, [
+            'success' => false,
+            'error' => 'La respuesta de seguridad no coincide. No fue posible cambiar la contraseña.',
+        ]);
+    }
+
+    $hashedPassword = password_hash($contrasenaNueva, PASSWORD_DEFAULT);
+    if ($hashedPassword === false) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo procesar la nueva contraseña.',
+        ]);
+    }
+
+    $stmt = $conn->prepare('UPDATE docentes SET password = ? WHERE id = ? LIMIT 1');
+    if (!$stmt) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo actualizar la contraseña.',
+        ]);
+    }
+
+    $docenteId = (int) ($row['id'] ?? 0);
+    $stmt->bind_param('si', $hashedPassword, $docenteId);
+    $ok = $stmt->execute();
+    $stmt->close();
+
+    if (!$ok) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo actualizar la contraseña.',
+        ]);
+    }
+
+    jsonResponse(200, [
+        'success' => true,
+        'message' => 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.',
+    ]);
+}
+
+function obtenerUsuariosAdmin(mysqli $conn): void
+{
+    $authUser = requireAdminAccess();
+    $result = $conn->query(
+        'SELECT id, usuario, nombre, apellido, correo, rol, activo, fecha_registro
+         FROM docentes
+         ORDER BY activo DESC,
+                  CASE WHEN LOWER(COALESCE(rol, "")) = "administrador" OR usuario = "admin" THEN 0 ELSE 1 END,
+                  nombre ASC,
+                  apellido ASC,
+                  usuario ASC'
+    );
+
+    if (!$result) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo cargar el listado de usuarios.',
+        ]);
+    }
+
+    $rows = [];
+    while ($row = $result->fetch_assoc()) {
+        $rows[] = buildDocenteAdminPayload($row, (int) ($authUser['id'] ?? 0));
+    }
+
+    jsonResponse(200, [
+        'success' => true,
+        'data' => $rows,
+    ]);
+}
+
+function crearUsuarioAdmin(mysqli $conn, array $data): void
+{
+    requireAdminAccess();
+    $input = validateDocenteInput($conn, $data, true, true);
+
+    $hashedPassword = password_hash($input['contrasena'], PASSWORD_DEFAULT);
+    if ($hashedPassword === false) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo procesar la contraseña del usuario.',
+        ]);
+    }
+
+    $stmt = $conn->prepare(
+        'INSERT INTO docentes (usuario, password, nombre, apellido, correo, rol, activo)
+         VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+
+    if (!$stmt) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo crear el usuario.',
+        ]);
+    }
+
+    $stmt->bind_param(
+        'ssssssi',
+        $input['usuario'],
+        $hashedPassword,
+        $input['nombre'],
+        $input['apellido'],
+        $input['correo'],
+        $input['rol'],
+        $input['activo']
+    );
+
+    if (!$stmt->execute()) {
+        $stmt->close();
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo crear el usuario.',
+        ]);
+    }
+
+    $newId = (int) $conn->insert_id;
+    $stmt->close();
+
+    $created = findDocenteById($conn, $newId);
+    jsonResponse(201, [
+        'success' => true,
+        'message' => 'Usuario creado correctamente.',
+        'data' => $created ? buildDocenteAdminPayload($created) : ['id' => $newId],
+    ]);
+}
+
+function actualizarUsuarioAdmin(mysqli $conn, array $data): void
+{
+    $authUser = requireAdminAccess();
+    $userId = (int) ($data['id'] ?? 0);
+
+    if ($userId <= 0) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Debes indicar un usuario válido para editar.',
+        ]);
+    }
+
+    $currentRow = findDocenteById($conn, $userId);
+    if (!$currentRow) {
+        jsonResponse(404, [
+            'success' => false,
+            'error' => 'El usuario seleccionado no existe.',
+        ]);
+    }
+
+    $input = validateDocenteInput($conn, $data, true, false, $userId);
+    $isCurrentUser = $userId === (int) ($authUser['id'] ?? 0);
+    $currentRole = resolveDocenteRole($currentRow);
+    $willRemainAdmin = $input['rol'] === 'administrador';
+    $willRemainActive = (int) $input['activo'] === 1;
+
+    if ($isCurrentUser && (!$willRemainAdmin || !$willRemainActive)) {
+        jsonResponse(409, [
+            'success' => false,
+            'error' => 'No puedes quitarte el rol de administrador ni desactivar tu propia cuenta desde aquí.',
+        ]);
+    }
+
+    if ($currentRole === 'administrador' && (!$willRemainAdmin || !$willRemainActive)) {
+        if (countActiveAdministrators($conn, $userId) === 0) {
+            jsonResponse(409, [
+                'success' => false,
+                'error' => 'Debe existir al menos un administrador activo en el sistema.',
+            ]);
+        }
+    }
+
+    $hashedPassword = '';
+    if ($input['contrasena'] !== '') {
+        $hashedPassword = password_hash($input['contrasena'], PASSWORD_DEFAULT);
+        if ($hashedPassword === false) {
+            jsonResponse(500, [
+                'success' => false,
+                'error' => 'No se pudo procesar la nueva contraseña.',
+            ]);
+        }
+    }
+
+    $stmt = $conn->prepare(
+        'UPDATE docentes
+         SET usuario = ?,
+             nombre = ?,
+             apellido = ?,
+             correo = ?,
+             rol = ?,
+             activo = ?,
+             password = COALESCE(NULLIF(?, ""), password)
+         WHERE id = ?'
+    );
+
+    if (!$stmt) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo actualizar el usuario.',
+        ]);
+    }
+
+    $stmt->bind_param(
+        'sssssisi',
+        $input['usuario'],
+        $input['nombre'],
+        $input['apellido'],
+        $input['correo'],
+        $input['rol'],
+        $input['activo'],
+        $hashedPassword,
+        $userId
+    );
+
+    if (!$stmt->execute()) {
+        $stmt->close();
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo actualizar el usuario.',
+        ]);
+    }
+
+    $stmt->close();
+
+    $updated = findDocenteById($conn, $userId);
+    $payload = [
+        'usuario' => $updated ? buildDocenteAdminPayload($updated, (int) ($authUser['id'] ?? 0)) : ['id' => $userId],
+    ];
+
+    if ($updated && $isCurrentUser) {
+        $sessionUser = buildAuthUserPayload($updated);
+        storeAuthenticatedUserSession($sessionUser);
+        $payload['auth_user'] = $sessionUser;
+    }
+
+    jsonResponse(200, [
+        'success' => true,
+        'message' => 'Usuario actualizado correctamente.',
+        'data' => $payload,
+    ]);
+}
+
+function eliminarUsuarioAdmin(mysqli $conn, array $data): void
+{
+    $authUser = requireAdminAccess();
+    $userId = (int) ($data['id'] ?? 0);
+
+    if ($userId <= 0) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Debes indicar un usuario válido para eliminar.',
+        ]);
+    }
+
+    if ($userId === (int) ($authUser['id'] ?? 0)) {
+        jsonResponse(409, [
+            'success' => false,
+            'error' => 'No puedes eliminar tu propia cuenta desde el panel.',
+        ]);
+    }
+
+    $currentRow = findDocenteById($conn, $userId);
+    if (!$currentRow) {
+        jsonResponse(404, [
+            'success' => false,
+            'error' => 'El usuario seleccionado no existe.',
+        ]);
+    }
+
+    if (resolveDocenteRole($currentRow) === 'administrador' && countActiveAdministrators($conn, $userId) === 0) {
+        jsonResponse(409, [
+            'success' => false,
+            'error' => 'No puedes eliminar al último administrador activo.',
+        ]);
+    }
+
+    $stmt = $conn->prepare('DELETE FROM docentes WHERE id = ?');
+    if (!$stmt) {
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo eliminar el usuario.',
+        ]);
+    }
+
+    $stmt->bind_param('i', $userId);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        jsonResponse(500, [
+            'success' => false,
+            'error' => 'No se pudo eliminar el usuario.',
+        ]);
+    }
+    $stmt->close();
+
+    jsonResponse(200, [
+        'success' => true,
+        'message' => 'Usuario eliminado correctamente.',
     ]);
 }
 
@@ -1385,6 +2559,7 @@ function agregarEstudiante(mysqli $conn, array $data): void
     $nombre = normalizeText($data['nombre'] ?? '');
     $apellido = normalizeText($data['apellido'] ?? '');
     $matricula = strtoupper(normalizeText($data['numero_matricula'] ?? ''));
+    $acudienteData = normalizeAcudientePayload($data);
 
     if ($nombre === '' || $apellido === '' || $matricula === '') {
         jsonResponse(400, [
@@ -1393,12 +2568,23 @@ function agregarEstudiante(mysqli $conn, array $data): void
         ]);
     }
 
+    $validationError = validateAcudientePayload($acudienteData, true);
+    if ($validationError !== null) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => $validationError,
+        ]);
+    }
+
+    $conn->begin_transaction();
+
     $stmt = $conn->prepare(
         'INSERT INTO estudiantes (nombre, apellido, numero_matricula, activo)
          VALUES (?, ?, ?, 1)'
     );
 
     if (!$stmt) {
+        $conn->rollback();
         jsonResponse(500, [
             'success' => false,
             'error' => 'No se pudo preparar el alta de estudiante.',
@@ -1410,6 +2596,7 @@ function agregarEstudiante(mysqli $conn, array $data): void
     if (!$stmt->execute()) {
         $code = $stmt->errno;
         $stmt->close();
+        $conn->rollback();
 
         if ($code === 1062) {
             jsonResponse(409, [
@@ -1427,9 +2614,20 @@ function agregarEstudiante(mysqli $conn, array $data): void
     $newId = $conn->insert_id;
     $stmt->close();
 
+    try {
+        upsertAcudienteByStudent($conn, $newId, $acudienteData);
+        $conn->commit();
+    } catch (RuntimeException $error) {
+        $conn->rollback();
+        jsonResponse(500, [
+            'success' => false,
+            'error' => $error->getMessage(),
+        ]);
+    }
+
     jsonResponse(201, [
         'success' => true,
-        'message' => 'Estudiante agregado correctamente.',
+        'message' => 'Estudiante y acudiente agregados correctamente.',
         'id' => $newId,
     ]);
 }
@@ -1440,6 +2638,7 @@ function actualizarEstudiante(mysqli $conn, array $data): void
     $nombre = normalizeText($data['nombre'] ?? '');
     $apellido = normalizeText($data['apellido'] ?? '');
     $matricula = strtoupper(normalizeText($data['numero_matricula'] ?? ''));
+    $acudienteData = normalizeAcudientePayload($data);
 
     if ($id <= 0 || $nombre === '' || $apellido === '' || $matricula === '') {
         jsonResponse(400, [
@@ -1448,6 +2647,16 @@ function actualizarEstudiante(mysqli $conn, array $data): void
         ]);
     }
 
+    $validationError = validateAcudientePayload($acudienteData, true);
+    if ($validationError !== null) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => $validationError,
+        ]);
+    }
+
+    $conn->begin_transaction();
+
     $stmt = $conn->prepare(
         'UPDATE estudiantes
          SET nombre = ?, apellido = ?, numero_matricula = ?
@@ -1455,6 +2664,7 @@ function actualizarEstudiante(mysqli $conn, array $data): void
     );
 
     if (!$stmt) {
+        $conn->rollback();
         jsonResponse(500, [
             'success' => false,
             'error' => 'No se pudo preparar la edición del estudiante.',
@@ -1466,6 +2676,7 @@ function actualizarEstudiante(mysqli $conn, array $data): void
     if (!$stmt->execute()) {
         $code = $stmt->errno;
         $stmt->close();
+        $conn->rollback();
 
         if ($code === 1062) {
             jsonResponse(409, [
@@ -1493,6 +2704,7 @@ function actualizarEstudiante(mysqli $conn, array $data): void
             $check->close();
 
             if (!$exists) {
+                $conn->rollback();
                 jsonResponse(404, [
                     'success' => false,
                     'error' => 'El estudiante a editar no existe o está inactivo.',
@@ -1501,9 +2713,20 @@ function actualizarEstudiante(mysqli $conn, array $data): void
         }
     }
 
+    try {
+        upsertAcudienteByStudent($conn, $id, $acudienteData);
+        $conn->commit();
+    } catch (RuntimeException $error) {
+        $conn->rollback();
+        jsonResponse(500, [
+            'success' => false,
+            'error' => $error->getMessage(),
+        ]);
+    }
+
     jsonResponse(200, [
         'success' => true,
-        'message' => 'Estudiante actualizado correctamente.',
+        'message' => 'Estudiante y acudiente actualizados correctamente.',
     ]);
 }
 
@@ -1726,6 +2949,10 @@ if ($method === 'GET') {
             obtenerAcudiente($conn);
             break;
 
+        case 'obtenerUsuariosAdmin':
+            obtenerUsuariosAdmin($conn);
+            break;
+
         default:
             jsonResponse(400, [
                 'success' => false,
@@ -1741,6 +2968,10 @@ if ($method === 'POST') {
     switch ($action) {
         case 'login':
             loginDocente($conn, $payload);
+            break;
+
+        case 'logout':
+            logoutCurrentSession();
             break;
 
         case 'agregarEstudiante':
@@ -1765,6 +2996,26 @@ if ($method === 'POST') {
 
         case 'crearDocente':
             crearDocente($conn, $payload);
+            break;
+
+        case 'consultarPreguntaSeguridad':
+            consultarPreguntaSeguridad($conn, $payload);
+            break;
+
+        case 'recuperarContrasena':
+            recuperarContrasena($conn, $payload);
+            break;
+
+        case 'crearUsuarioAdmin':
+            crearUsuarioAdmin($conn, $payload);
+            break;
+
+        case 'actualizarUsuarioAdmin':
+            actualizarUsuarioAdmin($conn, $payload);
+            break;
+
+        case 'eliminarUsuarioAdmin':
+            eliminarUsuarioAdmin($conn, $payload);
             break;
 
         case 'importarPlanillaAcudientes':

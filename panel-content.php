@@ -1,12 +1,54 @@
 ﻿  <div id="appContent">
-    <div class="container my-4">
-      <div class="d-flex justify-content-end mb-3">
+    <div class="container my-4 workspace-shell">
+      <div class="workspace-toolbar">
+        <div class="workspace-toolbar-copy">
+          <span class="workspace-kicker">Ruta académica</span>
+          <h2 class="workspace-title">Seguimiento disciplinario y acompañamiento</h2>
+          <p class="workspace-copy">
+            Selecciona el estudiante, construye el reporte y consolida la comunicación con el acudiente
+            en un flujo visual más claro y continuo.
+          </p>
+        </div>
         <button type="button" class="btn btn-outline-danger btn-sm" id="btnLogout">Cerrar sesión</button>
       </div>
 
+      <div class="workflow-stage-bar" id="workflowStageBar" aria-label="Etapas del flujo">
+        <button type="button" class="workflow-stage is-active" data-workflow-step="estudiantes">
+          <span class="workflow-stage-index">1</span>
+          <span class="workflow-stage-body">
+            <span class="workflow-stage-label">Estudiantes</span>
+            <span class="workflow-stage-copy">Selección y gestión</span>
+          </span>
+        </button>
+
+        <button type="button" class="workflow-stage" data-workflow-step="plantillas">
+          <span class="workflow-stage-index">2</span>
+          <span class="workflow-stage-body">
+            <span class="workflow-stage-label">Plantillas</span>
+            <span class="workflow-stage-copy">Observaciones disciplinarias</span>
+          </span>
+        </button>
+
+        <button type="button" class="workflow-stage" data-workflow-step="estimulos">
+          <span class="workflow-stage-index">3</span>
+          <span class="workflow-stage-body">
+            <span class="workflow-stage-label">Estímulos</span>
+            <span class="workflow-stage-copy">Reconocimientos y avance</span>
+          </span>
+        </button>
+
+        <button type="button" class="workflow-stage" data-workflow-step="acudiente">
+          <span class="workflow-stage-index">4</span>
+          <span class="workflow-stage-body">
+            <span class="workflow-stage-label">Acudiente</span>
+            <span class="workflow-stage-copy">Notificación y cierre</span>
+          </span>
+        </button>
+      </div>
+
       <!-- SECCIÓN 1: SELECCIÓN DE ESTUDIANTE Y GESTIÓN -->
-      <section id="seccionEstudiantes" aria-label="Selección y gestión de estudiantes" class="">
-        <div class="container">
+      <section id="seccionEstudiantes" aria-label="Selección y gestión de estudiantes" class="workspace-section">
+        <div class="container px-0">
           <div class="row">
             <!-- Columna izquierda: Buscar y seleccionar estudiante -->
             <div class="col-lg-7">
@@ -36,7 +78,7 @@
                   <small class="text-muted">Matrícula: <span id="matriculaEstudianteSeleccionado"></span></small>
                 </div>
 
-                <div id="historialEstudianteContainer" class="mt-3 card" style="display: none;">
+                <div id="historialEstudianteContainer" class="mt-3 card workspace-history-card" style="display: none;">
                   <div class="card-body">
                     <details id="historialEstudianteDetalles" class="historial-details" open>
                       <summary aria-controls="historialEstudiantePanel" class="d-flex align-items-center gap-2">
@@ -94,6 +136,45 @@
                     <label for="matricula" class="form-label">Número de Matrícula:</label>
                     <input type="text" class="form-control" id="matricula" placeholder="*****" autocomplete="off" required>
                   </div>
+                  <div class="border rounded p-3 bg-light mb-3">
+                    <h5 class="text-primary mb-2">Acudiente asociado</h5>
+                    <p class="text-muted small mb-3">
+                      Estos datos se guardan junto con el estudiante y luego se muestran automáticamente
+                      en la etapa final del informe.
+                    </p>
+                    <div class="mb-3">
+                      <label for="gestionAcudienteNombre" class="form-label">Nombre del acudiente</label>
+                      <input type="text" class="form-control" id="gestionAcudienteNombre" placeholder="Nombre completo del acudiente" autocomplete="off" required>
+                    </div>
+                    <div class="mb-3">
+                      <label for="gestionAcudienteParentesco" class="form-label">Parentesco</label>
+                      <select class="form-select" id="gestionAcudienteParentesco">
+                        <option value="">Selecciona...</option>
+                        <option value="Madre">Madre</option>
+                        <option value="Padre">Padre</option>
+                        <option value="Abuela">Abuela</option>
+                        <option value="Abuelo">Abuelo</option>
+                        <option value="Tía">Tía</option>
+                        <option value="Tío">Tío</option>
+                        <option value="Acudiente legal">Acudiente legal</option>
+                        <option value="Otro">Otro</option>
+                      </select>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label for="gestionAcudienteTelefono" class="form-label">Teléfono</label>
+                        <input type="text" class="form-control" id="gestionAcudienteTelefono" placeholder="Ej. 3001234567" autocomplete="off">
+                      </div>
+                      <div class="col-md-6">
+                        <label for="gestionAcudienteCorreo" class="form-label">Correo electrónico</label>
+                        <input type="email" class="form-control" id="gestionAcudienteCorreo" placeholder="acudiente@correo.com" autocomplete="off">
+                      </div>
+                    </div>
+                    <div class="mt-3">
+                      <label for="gestionAcudienteDireccion" class="form-label">Dirección (opcional)</label>
+                      <input type="text" class="form-control" id="gestionAcudienteDireccion" placeholder="Dirección del acudiente" autocomplete="off">
+                    </div>
+                  </div>
                   <button type="submit" class="btn btn-success w-100">Agregar Estudiante</button>
                   <button type="button" class="btn btn-warning w-100 mt-2 d-none" id="btnActualizarEstudiante">
                     Actualizar Estudiante
@@ -103,7 +184,7 @@
                   </button>
                 </form>
 
-                <div id="listaEstudiantesGestion" class="border rounded p-3" style="max-height: 250px; overflow-y: auto;">
+                <div id="listaEstudiantesGestion" class="border rounded p-3 student-manage-list" style="max-height: 250px; overflow-y: auto;">
                   <small class="text-muted">Estudiantes recientes...</small>
                 </div>
               </div>
@@ -113,7 +194,7 @@
       </section>
 
       <!-- SECCIÓN 2: PLANTILLAS DISCIPLINARIAS -->
-      <section id="seccionPlantillas" aria-label="Plantillas disciplinarias" class="d-none">
+      <section id="seccionPlantillas" aria-label="Plantillas disciplinarias" class="workspace-section d-none">
         <div class="text-center mb-4">
           <h2 class="fw-bold text-uppercase text-primary">Plantillas Disciplinarias</h2>
           <p class="text-muted">Registro de observaciones según el tipo de falta cometida por el estudiante.</p>
@@ -250,14 +331,12 @@
             </div>
           </div>
 
-          <div class="mt-4 d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-success" id="btnGuardarSeleccion">Guardar selección</button>
-            <button type="button" class="btn btn-primary" id="btnGenerarReporte">Generar reporte</button>
-          </div>
+            <div class="mt-4 d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-primary" id="btnGenerarReporte">Generar reporte</button>
+            </div>
 
-          <div id="reporteGenerado" class="mt-4 p-3 border border-info rounded bg-light d-none">
-            <h5>Observaciones seleccionadas:</h5>
-            <ul id="listaReporte" class="mb-0"></ul>
+          <div id="reporteGenerado" class="mt-4 p-3 border border-info rounded bg-light d-none workspace-report-box disciplinary-report-box">
+            <div id="reporteResumenContenido"></div>
           </div>
         </div>
 
@@ -284,7 +363,7 @@
     </div>
 
     <!-- SECCIÓN 3: ESTÍMULOS -->
-    <section id="seccionEstimulos" class="container my-5 d-none">
+    <section id="seccionEstimulos" class="container my-5 d-none workspace-section">
       <div class="text-center mb-4">
         <h2 class="text-success fw-bold text-uppercase">Plantillas de Estímulos</h2>
         <p class="text-muted fs-5">ESTÍMULOS</p>
@@ -310,15 +389,11 @@
           </label>
         </div>
 
-        <div class="mt-4 d-flex flex-wrap gap-2">
-          <button type="button" class="btn btn-success" id="btnGuardarEstimulos">Guardar selección</button>
-          <button type="button" class="btn btn-primary" id="btnReporteEstimulos">Generar reporte</button>
-        </div>
+          <div class="mt-4 d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary" id="btnReporteEstimulos">Generar reporte</button>
+          </div>
 
-        <div id="reporteEstimulos" class="mt-4 p-3 border border-success rounded bg-light d-none">
-          <h5>Estímulos seleccionados:</h5>
-          <ul id="listaEstimulos" class="mb-0"></ul>
-        </div>
+        <div id="reporteEstimulos" class="mt-4 p-3 border border-success rounded bg-light d-none workspace-report-box disciplinary-report-box"></div>
 
         <!-- Botones de navegación para estímulos -->
         <div class="mt-4 d-flex justify-content-between">
@@ -343,10 +418,10 @@
     </section>
 
     <!-- SECCIÓN 4: PERFIL DEL ACUDIENTE -->
-    <section id="seccionAcudiente" class="container my-5 d-none">
+    <section id="seccionAcudiente" class="container my-5 d-none workspace-section">
       <div class="text-center mb-4">
-        <h2 class="text-primary fw-bold text-uppercase">Perfil del Acudiente</h2>
-        <p class="text-muted fs-5">Notificación y correo del informe disciplinario</p>
+        <h2 class="text-primary fw-bold text-uppercase">Acudiente Asociado</h2>
+        <p class="text-muted fs-5">Datos cargados desde la ficha del estudiante y notificación del informe disciplinario</p>
       </div>
 
       <div class="card p-4 shadow-sm">
@@ -357,14 +432,22 @@
           <small class="text-muted">Matrícula: <span id="acudienteMatriculaEstudiante">N/A</span></small>
         </div>
 
+        <div id="acudienteEstado" class="alert d-none" role="status"></div>
+
+        <div class="mb-3 d-flex justify-content-end">
+          <button type="button" class="btn btn-outline-primary btn-sm d-none" id="btnEditarAcudienteDesdeGestion">
+            Editar acudiente en gestión de estudiantes
+          </button>
+        </div>
+
         <div class="row g-3">
           <div class="col-md-6">
             <label for="acudienteNombre" class="form-label">Nombre del acudiente</label>
-            <input type="text" class="form-control" id="acudienteNombre" placeholder="Nombre completo del acudiente">
+            <input type="text" class="form-control" id="acudienteNombre" placeholder="Nombre completo del acudiente" readonly>
           </div>
           <div class="col-md-6">
             <label for="acudienteParentesco" class="form-label">Parentesco</label>
-            <select class="form-select" id="acudienteParentesco">
+            <select class="form-select" id="acudienteParentesco" disabled>
               <option value="">Selecciona...</option>
               <option value="Madre">Madre</option>
               <option value="Padre">Padre</option>
@@ -378,20 +461,16 @@
           </div>
           <div class="col-md-6">
             <label for="acudienteTelefono" class="form-label">Teléfono</label>
-            <input type="text" class="form-control" id="acudienteTelefono" placeholder="Ej. 3001234567">
+            <input type="text" class="form-control" id="acudienteTelefono" placeholder="Ej. 3001234567" readonly>
           </div>
           <div class="col-md-6">
             <label for="acudienteCorreo" class="form-label">Correo electrónico</label>
-            <input type="email" class="form-control" id="acudienteCorreo" placeholder="acudiente@correo.com">
+            <input type="email" class="form-control" id="acudienteCorreo" placeholder="acudiente@correo.com" readonly>
           </div>
           <div class="col-12">
             <label for="acudienteDireccion" class="form-label">Dirección (opcional)</label>
-            <input type="text" class="form-control" id="acudienteDireccion" placeholder="Dirección del acudiente">
+            <input type="text" class="form-control" id="acudienteDireccion" placeholder="Dirección del acudiente" readonly>
           </div>
-        </div>
-
-        <div class="mt-4 d-flex flex-wrap gap-2">
-          <button type="button" class="btn btn-success" id="btnGuardarAcudiente">Guardar perfil acudiente</button>
         </div>
 
         <div id="acudienteLoading" class="alert alert-info mt-3 d-none">

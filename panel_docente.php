@@ -1,39 +1,39 @@
-﻿<?php header('Content-Type: text/html; charset=UTF-8'); ?>
+<?php
+declare(strict_types=1);
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+$authUser = $_SESSION['auth_user'] ?? null;
+if (!is_array($authUser) || (($authUser['rol'] ?? '') !== 'docente')) {
+    header('Location: index.php');
+    exit;
+}
+
+header('Content-Type: text/html; charset=UTF-8');
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel Docente</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles/styles.css">
+  <link rel="stylesheet" href="styles/styles.css?v=20260408-22">
   <link rel="stylesheet" href="chatbot/chatbot.css">
 </head>
-<body>
+<body class="site-body">
   <script>
-    (function () {
-      const raw = sessionStorage.getItem('auth_user');
-      if (!raw) {
-        window.location.href = 'index.php';
-        return;
-      }
-
-      try {
-        const parsed = JSON.parse(raw);
-        if (!parsed || parsed.rol !== 'docente') {
-          window.location.href = 'index.php';
-          return;
-        }
-        window.__panelUser = parsed;
-      } catch (_error) {
-        window.location.href = 'index.php';
-      }
-    })();
+    window.__panelUser = <?php echo json_encode($authUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
   </script>
 
   <div class="container py-5">
-    <header class="text-center mb-5">
-      <img src="img/logo.jpg" alt="Logo Institución Educativa" class="img-fluid mb-3" style="max-height: 100px;">
+    <header class="page-header text-center mb-5">
+      <img src="img/Logo.png" alt="Logo Institución Educativa" class="brand-logo img-fluid mb-3">
       <h1 class="text-primary">Panel Docente</h1>
       <h2 class="h4 text-primary">Institución Educativa Gilberto Alzate Avendaño</h2>
       <p id="userGreeting" class="text-muted small mt-2"></p>
@@ -56,8 +56,9 @@
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="js/script.js?v=20260307-5"></script>
-  <script src="js/estudiantes.js?v=20260315-2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="js/script.js?v=20260408-8"></script>
+  <script src="js/estudiantes.js?v=20260408-12"></script>
 
   <div id="chatbot-bubble" aria-hidden="false" title="Abrir asistente virtual">💬</div>
   <div id="chatbot-window" role="dialog" aria-label="Asistente Virtual">

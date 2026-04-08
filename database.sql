@@ -26,6 +26,8 @@ CREATE TABLE docentes (
     apellido VARCHAR(100) NOT NULL DEFAULT 'Docente',
     rol VARCHAR(20) NOT NULL DEFAULT 'docente',
     correo VARCHAR(100) DEFAULT NULL,
+    pregunta_seguridad VARCHAR(80) DEFAULT NULL,
+    respuesta_seguridad_hash VARCHAR(255) DEFAULT NULL,
     activo TINYINT(1) NOT NULL DEFAULT 1,
     fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;

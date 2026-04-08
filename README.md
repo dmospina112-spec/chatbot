@@ -39,6 +39,31 @@ Valores por defecto:
 Si no defines variables de entorno, se usan esos valores automáticamente.
 Puedes crear un `.env` usando `.env.example`.
 
+## Envío de correos
+El botón de envío al acudiente ahora usa SMTP real configurado desde `.env`.
+
+Variables disponibles:
+- `MAIL_FROM`
+- `MAIL_FROM_NAME`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USERNAME`
+- `SMTP_PASSWORD`
+- `SMTP_ENCRYPTION`
+- `SMTP_TIMEOUT`
+
+Ejemplo con Gmail:
+- `MAIL_FROM=tu_correo@gmail.com`
+- `MAIL_FROM_NAME=App Educativa`
+- `SMTP_HOST=smtp.gmail.com`
+- `SMTP_PORT=587`
+- `SMTP_USERNAME=tu_correo@gmail.com`
+- `SMTP_PASSWORD=tu_app_password`
+- `SMTP_ENCRYPTION=tls`
+
+Nota:
+- Para Gmail debes usar una contraseña de aplicación, no tu contraseña normal.
+
 ## Estructura principal
 - `index.html`: interfaz principal.
 - `api.php`: API backend (login, CRUD estudiantes, guardar registros).

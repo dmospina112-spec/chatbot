@@ -59,6 +59,8 @@ function ensureDatabaseReady(): void
             apellido VARCHAR(100) NOT NULL DEFAULT 'Docente',
             rol VARCHAR(20) NOT NULL DEFAULT 'docente',
             correo VARCHAR(100) DEFAULT NULL,
+            pregunta_seguridad VARCHAR(80) DEFAULT NULL,
+            respuesta_seguridad_hash VARCHAR(255) DEFAULT NULL,
             activo TINYINT(1) NOT NULL DEFAULT 1,
             fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB",
@@ -181,6 +183,16 @@ function ensureDatabaseReady(): void
         $serverConn->query("ALTER TABLE docentes ADD COLUMN apellido VARCHAR(100) NOT NULL DEFAULT 'Docente' AFTER nombre");
     }
 
+    $securityQuestionColumnCheck = $serverConn->query("SHOW COLUMNS FROM docentes LIKE 'pregunta_seguridad'");
+    if (!$securityQuestionColumnCheck || $securityQuestionColumnCheck->num_rows === 0) {
+        $serverConn->query("ALTER TABLE docentes ADD COLUMN pregunta_seguridad VARCHAR(80) DEFAULT NULL AFTER correo");
+    }
+
+    $securityAnswerColumnCheck = $serverConn->query("SHOW COLUMNS FROM docentes LIKE 'respuesta_seguridad_hash'");
+    if (!$securityAnswerColumnCheck || $securityAnswerColumnCheck->num_rows === 0) {
+        $serverConn->query("ALTER TABLE docentes ADD COLUMN respuesta_seguridad_hash VARCHAR(255) DEFAULT NULL AFTER pregunta_seguridad");
+    }
+
     $countResult = $serverConn->query('SELECT COUNT(*) AS total FROM docentes');
     $totalDocentes = 0;
     if ($countResult) {
@@ -220,6 +232,8 @@ function ensureDatabaseReady(): void
     if ($roleColumnCheck && $roleColumnCheck->num_rows === 0) {
         $serverConn->query("ALTER TABLE docentes ADD COLUMN rol VARCHAR(20) NOT NULL DEFAULT 'docente' AFTER correo");
     }
+
+    $serverConn->query("UPDATE docentes SET rol = 'administrador' WHERE usuario = 'admin'");
 
     $serverConn->close();
     $initialized = true;

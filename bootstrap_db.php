@@ -76,7 +76,8 @@ function ensureDatabaseReady(): void
         "CREATE TABLE IF NOT EXISTS acudientes (
             id INT AUTO_INCREMENT PRIMARY KEY,
             estudiante_id INT NOT NULL UNIQUE,
-            nombre VARCHAR(150) NOT NULL,
+            nombre VARCHAR(100) NOT NULL,
+            apellido VARCHAR(100) NOT NULL DEFAULT '',
             parentesco VARCHAR(60) DEFAULT NULL,
             telefono VARCHAR(30) DEFAULT NULL,
             correo VARCHAR(150) DEFAULT NULL,
@@ -192,6 +193,13 @@ function ensureDatabaseReady(): void
     if (!$securityAnswerColumnCheck || $securityAnswerColumnCheck->num_rows === 0) {
         $serverConn->query("ALTER TABLE docentes ADD COLUMN respuesta_seguridad_hash VARCHAR(255) DEFAULT NULL AFTER pregunta_seguridad");
     }
+
+    $acudienteApellidoColumnCheck = $serverConn->query("SHOW COLUMNS FROM acudientes LIKE 'apellido'");
+    if (!$acudienteApellidoColumnCheck || $acudienteApellidoColumnCheck->num_rows === 0) {
+        $serverConn->query("ALTER TABLE acudientes ADD COLUMN apellido VARCHAR(100) NOT NULL DEFAULT '' AFTER nombre");
+    }
+
+    $serverConn->query("UPDATE acudientes SET apellido = '' WHERE apellido IS NULL");
 
     $countResult = $serverConn->query('SELECT COUNT(*) AS total FROM docentes');
     $totalDocentes = 0;

@@ -1130,6 +1130,7 @@ function llenarListaGestion() {
 function obtenerDatosAcudienteGestion() {
   return {
     nombre: document.getElementById('gestionAcudienteNombre')?.value.trim() || '',
+    apellido: document.getElementById('gestionAcudienteApellido')?.value.trim() || '',
     parentesco: document.getElementById('gestionAcudienteParentesco')?.value.trim() || '',
     telefono: document.getElementById('gestionAcudienteTelefono')?.value.trim() || '',
     correo: document.getElementById('gestionAcudienteCorreo')?.value.trim() || '',
@@ -1139,6 +1140,7 @@ function obtenerDatosAcudienteGestion() {
 
 function llenarFormularioAcudienteGestion(data = null) {
   document.getElementById('gestionAcudienteNombre').value = data?.nombre || '';
+  document.getElementById('gestionAcudienteApellido').value = data?.apellido || '';
   document.getElementById('gestionAcudienteParentesco').value = data?.parentesco || '';
   document.getElementById('gestionAcudienteTelefono').value = data?.telefono || '';
   document.getElementById('gestionAcudienteCorreo').value = data?.correo || '';
@@ -1181,8 +1183,8 @@ async function procesarFormEstudiante() {
     return;
   }
 
-  if (!acudiente.nombre) {
-    alert('Completa el nombre del acudiente en la ficha del estudiante.');
+  if (!acudiente.nombre || !acudiente.apellido) {
+    alert('Completa nombre y apellido del acudiente en la ficha del estudiante.');
     return;
   }
 
@@ -1503,6 +1505,7 @@ function actualizarEstadoAcudiente(tipo = '', mensaje = '', mostrarEdicion = fal
 
 function limpiarFormularioAcudiente() {
   document.getElementById('acudienteNombre').value = '';
+  document.getElementById('acudienteApellido').value = '';
   document.getElementById('acudienteParentesco').value = '';
   document.getElementById('acudienteTelefono').value = '';
   document.getElementById('acudienteCorreo').value = '';
@@ -1511,6 +1514,7 @@ function limpiarFormularioAcudiente() {
 
 function llenarFormularioAcudiente(data = null) {
   document.getElementById('acudienteNombre').value = data?.nombre || '';
+  document.getElementById('acudienteApellido').value = data?.apellido || '';
   document.getElementById('acudienteParentesco').value = data?.parentesco || '';
   document.getElementById('acudienteTelefono').value = data?.telefono || '';
   document.getElementById('acudienteCorreo').value = data?.correo || '';
@@ -1520,6 +1524,7 @@ function llenarFormularioAcudiente(data = null) {
 function obtenerDatosAcudiente() {
   return {
     nombre: document.getElementById('acudienteNombre')?.value.trim() || '',
+    apellido: document.getElementById('acudienteApellido')?.value.trim() || '',
     parentesco: document.getElementById('acudienteParentesco')?.value.trim() || '',
     telefono: document.getElementById('acudienteTelefono')?.value.trim() || '',
     correo: document.getElementById('acudienteCorreo')?.value.trim() || '',
@@ -1610,9 +1615,9 @@ async function guardarAcudiente(mostrarAlertas = true) {
     return null;
   }
 
-  if (!datos.nombre) {
+  if (!datos.nombre || !datos.apellido) {
     if (mostrarAlertas) {
-      alert('El nombre del acudiente es obligatorio para guardar el perfil.');
+      alert('El nombre y apellido del acudiente son obligatorios para guardar el perfil.');
     }
     return null;
   }
@@ -1670,7 +1675,12 @@ function mensajeCorrespondeAEstudianteActual(mensaje) {
 
   const nombreEstudiante = normalizeCompareText(`${estudianteSeleccionado.nombre} ${estudianteSeleccionado.apellido}`);
   const matricula = normalizeCompareText(estudianteSeleccionado.numero_matricula || '');
-  const nombreAcudiente = normalizeCompareText(document.getElementById('acudienteNombre')?.value.trim() || '');
+  const nombreAcudiente = normalizeCompareText(
+    [
+      document.getElementById('acudienteNombre')?.value.trim() || '',
+      document.getElementById('acudienteApellido')?.value.trim() || '',
+    ].join(' ').trim()
+  );
 
   if (!texto.includes(nombreEstudiante) || (matricula && !texto.includes(matricula))) {
     return false;
@@ -1702,8 +1712,9 @@ function construirTextoNotificacion() {
     formatearBloqueInforme('Estímulos', estimulos),
   ];
 
-  const saludo = datosAcudiente.nombre
-    ? `Señor(a) ${datosAcudiente.nombre}${datosAcudiente.parentesco ? ` (${datosAcudiente.parentesco})` : ''},`
+  const nombreCompletoAcudiente = [datosAcudiente.nombre, datosAcudiente.apellido].filter(Boolean).join(' ');
+  const saludo = nombreCompletoAcudiente
+    ? `Señor(a) ${nombreCompletoAcudiente}${datosAcudiente.parentesco ? ` (${datosAcudiente.parentesco})` : ''},`
     : 'Señor(a) acudiente,';
 
   return [
@@ -1818,7 +1829,7 @@ async function enviarCorreoAcudiente() {
   const datosAcudiente = obtenerDatosAcudiente();
   const correo = document.getElementById('acudienteCorreo')?.value.trim() || '';
 
-  if (!datosAcudiente.nombre) {
+  if (!datosAcudiente.nombre || !datosAcudiente.apellido) {
     alert('El estudiante no tiene acudiente asociado. Actualízalo desde Gestión de Estudiantes.');
     return;
   }

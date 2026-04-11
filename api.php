@@ -68,6 +68,38 @@ function normalizeEmailAddress($value): string
     return strtolower(trim((string) $value));
 }
 
+function splitFullNameParts(string $fullName): array
+{
+    $fullName = normalizeText($fullName);
+    if ($fullName === '') {
+        return ['nombre' => '', 'apellido' => ''];
+    }
+
+    $parts = preg_split('/\s+/', $fullName) ?: [];
+    $parts = array_values(array_filter($parts, static fn($part) => $part !== ''));
+    $count = count($parts);
+
+    if ($count <= 1) {
+        return ['nombre' => $fullName, 'apellido' => ''];
+    }
+
+    if ($count === 2) {
+        return ['nombre' => $parts[0], 'apellido' => $parts[1]];
+    }
+
+    $splitIndex = (int) ceil($count / 2);
+
+    return [
+        'nombre' => implode(' ', array_slice($parts, 0, $splitIndex)),
+        'apellido' => implode(' ', array_slice($parts, $splitIndex)),
+    ];
+}
+
+function composePersonFullName(string $nombre, string $apellido): string
+{
+    return trim(normalizeText($nombre) . ' ' . normalizeText($apellido));
+}
+
 function encodeMimeHeaderValue(string $value): string
 {
     if ($value === '') {
@@ -863,11 +895,14 @@ function getRequestAction(): string
 function getAcudientesPlanillaPath(): string
 {
     $configured = normalizeText(getenv('ACUDIENTES_XLSX_PATH') ?: '');
+    if ($configured === '') {
+        $configured = normalizeText(getenv('ACUDIENTES_XLS_PATH') ?: '');
+    }
     if ($configured !== '') {
         return $configured;
     }
 
-    return 'C:\Users\Educacion IEGA\AppData\Roaming\Microsoft\Windows\Network Shortcuts\planilla acudiente.xlsx';
+    return 'C:\Users\PC\Downloads\Plano_matricula_11-04-2026.xls';
 }
 
 function columnLettersFromCellRef(string $ref): string
@@ -1256,10 +1291,11 @@ function importarPlanillaAcudientes(mysqli $conn): void
     }
 
     $stmt = $conn->prepare(
-        'INSERT INTO acudientes (estudiante_id, nombre, parentesco, telefono, correo, direccion)
-         VALUES (?, ?, ?, ?, ?, ?)
+        'INSERT INTO acudientes (estudiante_id, nombre, apellido, parentesco, telefono, correo, direccion)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
             nombre = VALUES(nombre),
+            apellido = VALUES(apellido),
             parentesco = VALUES(parentesco),
             telefono = VALUES(telefono),
             correo = VALUES(correo),
@@ -1313,8 +1349,18 @@ function importarPlanillaAcudientes(mysqli $conn): void
             $correo = '';
         }
 
+        $acudienteNombre = splitFullNameParts($nombreAcudiente);
         $direccion = '';
-        $stmt->bind_param('isssss', $estudianteId, $nombreAcudiente, $parentesco, $telefono, $correo, $direccion);
+        $stmt->bind_param(
+            'issssss',
+            $estudianteId,
+            $acudienteNombre['nombre'],
+            $acudienteNombre['apellido'],
+            $parentesco,
+            $telefono,
+            $correo,
+            $direccion
+        );
         if ($stmt->execute()) {
             $guardados++;
         }
@@ -1340,6 +1386,7 @@ function obtenerEstudiantes(mysqli $conn): void
                    e.activo,
                    a.id AS acudiente_id,
                    a.nombre AS acudiente_nombre,
+                   a.apellido AS acudiente_apellido,
                    a.parentesco AS acudiente_parentesco,
                    a.telefono AS acudiente_telefono,
                    a.correo AS acudiente_correo,
@@ -1370,6 +1417,11 @@ function obtenerEstudiantes(mysqli $conn): void
                 ? [
                     'id' => $acudienteId,
                     'nombre' => normalizeText($row['acudiente_nombre'] ?? ''),
+                    'apellido' => normalizeText($row['acudiente_apellido'] ?? ''),
+                    'nombre_completo' => composePersonFullName(
+                        (string) ($row['acudiente_nombre'] ?? ''),
+                        (string) ($row['acudiente_apellido'] ?? '')
+                    ),
                     'parentesco' => normalizeText($row['acudiente_parentesco'] ?? ''),
                     'telefono' => normalizeText($row['acudiente_telefono'] ?? ''),
                     'correo' => normalizeText($row['acudiente_correo'] ?? ''),
@@ -1523,7 +1575,7 @@ function fetchLegacyAcudiente(mysqli $conn, int $estudianteId): ?array
     }
 
     $stmt = $conn->prepare(
-        'SELECT id, estudiante_id, nombre, parentesco, telefono, correo, direccion
+        'SELECT id, estudiante_id, nombre, apellido, parentesco, telefono, correo, direccion
          FROM `app_educativa`.acudientes
          WHERE estudiante_id = ?
          LIMIT 1'
@@ -1543,10 +1595,20 @@ function fetchLegacyAcudiente(mysqli $conn, int $estudianteId): ?array
         return null;
     }
 
+    $nombre = normalizeText($row['nombre'] ?? '');
+    $apellido = normalizeText($row['apellido'] ?? '');
+    if ($apellido === '') {
+        $partes = splitFullNameParts($nombre);
+        $nombre = $partes['nombre'];
+        $apellido = $partes['apellido'];
+    }
+
     return [
         'id' => (int) ($row['id'] ?? 0),
         'estudiante_id' => (int) ($row['estudiante_id'] ?? 0),
-        'nombre' => normalizeText($row['nombre'] ?? ''),
+        'nombre' => $nombre,
+        'apellido' => $apellido,
+        'nombre_completo' => composePersonFullName($nombre, $apellido),
         'parentesco' => normalizeText($row['parentesco'] ?? ''),
         'telefono' => normalizeText($row['telefono'] ?? ''),
         'correo' => normalizeText($row['correo'] ?? ''),
@@ -1563,6 +1625,7 @@ function normalizeAcudientePayload(array $data): array
 
     return [
         'nombre' => normalizeText($source['nombre'] ?? ''),
+        'apellido' => normalizeText($source['apellido'] ?? ''),
         'parentesco' => normalizeText($source['parentesco'] ?? ''),
         'telefono' => normalizeText($source['telefono'] ?? ''),
         'correo' => normalizeText($source['correo'] ?? ''),
@@ -1576,6 +1639,10 @@ function validateAcudientePayload(array $data, bool $requireName = true): ?strin
         return 'El nombre del acudiente es obligatorio.';
     }
 
+    if ($requireName && ($data['apellido'] ?? '') === '') {
+        return 'El apellido del acudiente es obligatorio.';
+    }
+
     $correo = (string) ($data['correo'] ?? '');
     if ($correo !== '' && !filter_var($correo, FILTER_VALIDATE_EMAIL)) {
         return 'El correo del acudiente no tiene un formato válido.';
@@ -1587,7 +1654,7 @@ function validateAcudientePayload(array $data, bool $requireName = true): ?strin
 function fetchAcudienteActual(mysqli $conn, int $estudianteId): ?array
 {
     $stmt = $conn->prepare(
-        'SELECT id, estudiante_id, nombre, parentesco, telefono, correo, direccion
+        'SELECT id, estudiante_id, nombre, apellido, parentesco, telefono, correo, direccion
          FROM acudientes
          WHERE estudiante_id = ?
          LIMIT 1'
@@ -1607,10 +1674,20 @@ function fetchAcudienteActual(mysqli $conn, int $estudianteId): ?array
         return null;
     }
 
+    $nombre = normalizeText($row['nombre'] ?? '');
+    $apellido = normalizeText($row['apellido'] ?? '');
+    if ($apellido === '') {
+        $partes = splitFullNameParts($nombre);
+        $nombre = $partes['nombre'];
+        $apellido = $partes['apellido'];
+    }
+
     return [
         'id' => (int) ($row['id'] ?? 0),
         'estudiante_id' => (int) ($row['estudiante_id'] ?? 0),
-        'nombre' => normalizeText($row['nombre'] ?? ''),
+        'nombre' => $nombre,
+        'apellido' => $apellido,
+        'nombre_completo' => composePersonFullName($nombre, $apellido),
         'parentesco' => normalizeText($row['parentesco'] ?? ''),
         'telefono' => normalizeText($row['telefono'] ?? ''),
         'correo' => normalizeText($row['correo'] ?? ''),
@@ -1631,10 +1708,11 @@ function fetchAcudienteByStudent(mysqli $conn, int $estudianteId): ?array
 function upsertAcudienteByStudent(mysqli $conn, int $estudianteId, array $data): array
 {
     $stmt = $conn->prepare(
-        'INSERT INTO acudientes (estudiante_id, nombre, parentesco, telefono, correo, direccion)
-         VALUES (?, ?, ?, ?, ?, ?)
+        'INSERT INTO acudientes (estudiante_id, nombre, apellido, parentesco, telefono, correo, direccion)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
             nombre = VALUES(nombre),
+            apellido = VALUES(apellido),
             parentesco = VALUES(parentesco),
             telefono = VALUES(telefono),
             correo = VALUES(correo),
@@ -1647,9 +1725,10 @@ function upsertAcudienteByStudent(mysqli $conn, int $estudianteId, array $data):
     }
 
     $stmt->bind_param(
-        'isssss',
+        'issssss',
         $estudianteId,
         $data['nombre'],
+        $data['apellido'],
         $data['parentesco'],
         $data['telefono'],
         $data['correo'],
@@ -1671,6 +1750,8 @@ function upsertAcudienteByStudent(mysqli $conn, int $estudianteId, array $data):
         'id' => 0,
         'estudiante_id' => $estudianteId,
         'nombre' => $data['nombre'],
+        'apellido' => $data['apellido'],
+        'nombre_completo' => composePersonFullName($data['nombre'], $data['apellido']),
         'parentesco' => $data['parentesco'],
         'telefono' => $data['telefono'],
         'correo' => $data['correo'],

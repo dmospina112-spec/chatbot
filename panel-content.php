@@ -144,7 +144,11 @@
                     </p>
                     <div class="mb-3">
                       <label for="gestionAcudienteNombre" class="form-label">Nombre del acudiente</label>
-                      <input type="text" class="form-control" id="gestionAcudienteNombre" placeholder="Nombre completo del acudiente" autocomplete="off" required>
+                      <input type="text" class="form-control" id="gestionAcudienteNombre" placeholder="Nombre del acudiente" autocomplete="off" required>
+                    </div>
+                    <div class="mb-3">
+                      <label for="gestionAcudienteApellido" class="form-label">Apellido del acudiente</label>
+                      <input type="text" class="form-control" id="gestionAcudienteApellido" placeholder="Apellido del acudiente" autocomplete="off" required>
                     </div>
                     <div class="mb-3">
                       <label for="gestionAcudienteParentesco" class="form-label">Parentesco</label>
@@ -443,7 +447,11 @@
         <div class="row g-3">
           <div class="col-md-6">
             <label for="acudienteNombre" class="form-label">Nombre del acudiente</label>
-            <input type="text" class="form-control" id="acudienteNombre" placeholder="Nombre completo del acudiente" readonly>
+            <input type="text" class="form-control" id="acudienteNombre" placeholder="Nombre del acudiente" readonly>
+          </div>
+          <div class="col-md-6">
+            <label for="acudienteApellido" class="form-label">Apellido del acudiente</label>
+            <input type="text" class="form-control" id="acudienteApellido" placeholder="Apellido del acudiente" readonly>
           </div>
           <div class="col-md-6">
             <label for="acudienteParentesco" class="form-label">Parentesco</label>

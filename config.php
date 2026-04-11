@@ -15,7 +15,7 @@ function getDbConfig(): array
         'port' => (int) (getenv('DB_PORT') ?: 3306),
         'user' => getenv('DB_USER') ?: 'root',
         'pass' => getenv('DB_PASS') ?: '',
-        'name' => getenv('DB_NAME') ?: 'app_educativa_xampp',
+        'name' => getenv('DB_NAME') ?: 'App_educativa',
         'charset' => 'utf8mb4',
     ];
 }

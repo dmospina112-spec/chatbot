@@ -22,6 +22,7 @@ let historialPanel;
 let historialList;
 let historialEmpty;
 let btnImprimirHistorialSeleccionados;
+let btnEliminarHistorialSeleccionados;
 let historialRegistrosCache = new Map();
 let historialRegistros = [];
 
@@ -60,9 +61,38 @@ function cacheDom() {
   historialList = document.getElementById('historialEstudianteLista');
   historialEmpty = document.getElementById('historialEstudianteEmpty');
   btnImprimirHistorialSeleccionados = document.getElementById('btnImprimirHistorialSeleccionados');
+  asegurarBotonEliminarHistorial();
+  btnEliminarHistorialSeleccionados = document.getElementById('btnEliminarHistorialSeleccionados');
   acudienteLoading = document.getElementById('acudienteLoading');
   workflowButtons = Array.from(document.querySelectorAll('[data-workflow-step]'));
   adminMetricEstudiantes = document.getElementById('adminMetricEstudiantes');
+}
+
+function asegurarBotonEliminarHistorial() {
+  const botonImprimir = document.getElementById('btnImprimirHistorialSeleccionados');
+  if (!botonImprimir) {
+    return;
+  }
+
+  const contenedorAcciones = botonImprimir.parentElement;
+  if (!contenedorAcciones) {
+    return;
+  }
+
+  contenedorAcciones.classList.add('historial-actions');
+
+  let botonEliminar = document.getElementById('btnEliminarHistorialSeleccionados');
+  if (!botonEliminar) {
+    botonEliminar = document.createElement('button');
+    botonEliminar.type = 'button';
+    botonEliminar.id = 'btnEliminarHistorialSeleccionados';
+    botonEliminar.disabled = true;
+    botonEliminar.title = 'Eliminar del historial disciplinario los registros seleccionados';
+    contenedorAcciones.insertBefore(botonEliminar, botonImprimir);
+  }
+
+  botonEliminar.className = 'btn btn-sm btn-danger btn-historial-eliminar';
+  botonEliminar.textContent = 'Eliminar seleccionados';
 }
 
 function bindEvents() {
@@ -128,6 +158,7 @@ function bindEvents() {
     });
 
   btnImprimirHistorialSeleccionados?.addEventListener('click', imprimirHistorialSeleccionados);
+  btnEliminarHistorialSeleccionados?.addEventListener('click', eliminarHistorialSeleccionado);
 }
 
 function updateStudentMetrics() {
@@ -329,14 +360,20 @@ function mostrarHistorialEstudiante(registros = []) {
 }
 
 function actualizarBotonImprimirHistorial() {
-  if (!btnImprimirHistorialSeleccionados) {
+  if (!btnImprimirHistorialSeleccionados && !btnEliminarHistorialSeleccionados) {
     return;
   }
 
   const seleccionados = document.querySelectorAll(
     '#historialEstudianteLista input.historial-select-checkbox:checked'
   );
-  btnImprimirHistorialSeleccionados.disabled = seleccionados.length === 0;
+  const disabled = seleccionados.length === 0;
+  if (btnImprimirHistorialSeleccionados) {
+    btnImprimirHistorialSeleccionados.disabled = disabled;
+  }
+  if (btnEliminarHistorialSeleccionados) {
+    btnEliminarHistorialSeleccionados.disabled = disabled;
+  }
 }
 
 function obtenerRegistrosHistorialSeleccionados() {
@@ -350,6 +387,58 @@ function obtenerRegistrosHistorialSeleccionados() {
       }
     });
   return seleccionados;
+}
+
+async function eliminarHistorialSeleccionado() {
+  if (!estudianteSeleccionado?.id) {
+    alert('Selecciona un estudiante antes de eliminar registros del historial.');
+    return;
+  }
+
+  const registrosSeleccionados = obtenerRegistrosHistorialSeleccionados().filter(
+    (registro) => Number(registro?.id) > 0
+  );
+
+  if (registrosSeleccionados.length === 0) {
+    alert('Selecciona al menos un registro del historial para eliminar.');
+    return;
+  }
+
+  const cantidad = registrosSeleccionados.length;
+  const confirmacion = confirm(
+    cantidad === 1
+      ? '¿Seguro que deseas eliminar el registro disciplinario seleccionado?'
+      : `¿Seguro que deseas eliminar los ${cantidad} registros disciplinarios seleccionados?`
+  );
+
+  if (!confirmacion) {
+    return;
+  }
+
+  const recordIds = registrosSeleccionados.map((registro) => Number(registro.id));
+
+  try {
+    if (btnEliminarHistorialSeleccionados) {
+      btnEliminarHistorialSeleccionados.disabled = true;
+      btnEliminarHistorialSeleccionados.textContent = 'Eliminando...';
+    }
+
+    const result = await request('eliminarRegistrosHistorial', 'POST', {
+      estudiante_id: Number(estudianteSeleccionado.id),
+      record_ids: recordIds,
+    });
+
+    await cargarHistorialEstudiante();
+    alert(result.message || 'Registros eliminados correctamente.');
+  } catch (error) {
+    console.error(error);
+    alert(`No se pudieron eliminar los registros seleccionados: ${error.message}`);
+  } finally {
+    if (btnEliminarHistorialSeleccionados) {
+      btnEliminarHistorialSeleccionados.textContent = 'Eliminar seleccionados';
+    }
+    actualizarBotonImprimirHistorial();
+  }
 }
 
 function escapeHtml(value) {

@@ -11,18 +11,44 @@
     return;
   }
 
-  const STORAGE_KEY = 'app_educativa_chatbot_state_v1';
+  const STORAGE_KEY = 'app_educativa_chatbot_state_v2';
   const panelUser = window.__panelUser || {};
   const role = String(panelUser.rol || 'usuario').toLowerCase();
   const roleLabel = role === 'administrador' ? 'administrador' : 'docente';
 
-  const quickActions = [
-    '¿Cómo agrego un estudiante?',
-    '¿Cómo envío el correo al acudiente?',
-    '¿Cómo funcionan las faltas tipo 1, 2 y 3?',
-    '¿Cómo importo acudientes?',
-    role === 'administrador' ? '¿Cómo administro usuarios?' : '¿Cómo guardo el informe?'
+  const predefinedQuestions = [
+    {
+      question: '¿Cómo agrego un estudiante?',
+      answer:
+        'Para agregar un estudiante ve a la etapa "Estudiantes". En el formulario de la derecha completa nombre, apellido, matrícula y los datos del acudiente. Luego pulsa "Agregar Estudiante".'
+    },
+    {
+      question: '¿Cómo envío el correo al acudiente?',
+      answer:
+        'En la etapa "Acudiente" revisa el nombre, parentesco, teléfono y correo del acudiente asociado al estudiante. Después verifica el asunto y el contenido del mensaje, y luego usa la opción de envío'
+    },
+    {
+      question: '¿Cómo funcionan las faltas tipo 1, 2 y 3?',
+      answer:
+        'Las faltas tipo 1 agrupan llamados de atención por comportamiento, convivencia o comunicación inadecuada. Las faltas tipo 2 corresponden a situaciones más serias como agresiones, daño a implementos, fraude o acoso. Las faltas tipo 3 abarcan situaciones de alto riesgo o presuntamente delictivas, como amenazas graves, armas, sustancias o abuso sexual.'
+    },
+    {
+      question: '¿Cómo administro usuarios?',
+      role: 'administrador',
+      answer:
+        'Como administrador puedes abrir "Administrar usuarios", crear cuentas, editar datos, cambiar el rol entre docente y administrador, y activar o desactivar accesos del sistema.'
+    },
+    {
+      question: '¿Cómo guardo el informe?',
+      answer:
+        'Cuando termines de seleccionar faltas y revisar la notificación, usa "Guardar informe disciplinario". Eso registra el caso en la base de datos y conserva el historial del estudiante.'
+    }
   ];
+
+  const quickActions = predefinedQuestions
+    .filter((entry) => !entry.role || entry.role === role)
+    .slice(0, 5)
+    .map((entry) => entry.question);
 
   const faqEntries = [
     {
@@ -61,19 +87,19 @@
         'Las faltas tipo 3 abarcan situaciones presuntamente delictivas o de alto riesgo, como agresiones graves, armas, sustancias, abuso sexual o amenazas serias.'
     },
     {
-      keywords: ['estimulos', 'estímulos', 'reconocimientos'],
+      keywords: ['estimulos', 'reconocimientos'],
       answer:
         'Después de las plantillas disciplinarias puedes pasar a "Estímulos" para registrar reconocimientos positivos. También puedes generar un reporte de estímulos en PDF.'
     },
     {
-      keywords: ['acudiente', 'correo acudiente', 'notificacion', 'notificación'],
+      keywords: ['acudiente', 'correo acudiente', 'notificacion'],
       answer:
         'En la etapa "Acudiente" se cargan automáticamente nombre, apellido, parentesco, teléfono y correo del acudiente asociado al estudiante. Allí puedes revisar o generar la notificación antes de enviarla.'
     },
     {
       keywords: ['enviar correo', 'mandar correo', 'remitente', 'smtp', 'gmail'],
       answer:
-        'Para enviar el correo al acudiente necesitas que el estudiante tenga correo del acudiente y que el archivo .env tenga configurados MAIL_FROM, SMTP_HOST, SMTP_USERNAME y SMTP_PASSWORD con una clave de aplicación válida.'
+        'En la etapa "Acudiente" revisa el nombre, parentesco, teléfono y correo del acudiente asociado al estudiante. Después verifica el asunto y el contenido del mensaje, y luego usa la opción de envío'
     },
     {
       keywords: ['guardar informe', 'guardar registro', 'guardar reporte'],
@@ -86,33 +112,37 @@
         'Puedes generar reportes PDF desde las secciones de plantillas, estímulos e historial. El sistema usa html2pdf para construir el documento desde la vista actual.'
     },
     {
-      keywords: ['importar acudientes', 'importar planilla', 'xls', 'xlsx', 'excel'],
-      answer:
-        'La importación de acudientes usa la planilla configurada en .env. También ya existe un script para cargar automáticamente estudiantes y acudientes desde el archivo Plano_matricula_11-04-2026.xls.'
-    },
-    {
       keywords: ['usuarios', 'administrar usuarios', 'crear usuario', 'docente', 'administrador'],
       role: 'administrador',
       answer:
         'Como administrador puedes abrir "Administrar usuarios", crear cuentas, editar datos, cambiar rol entre docente y administrador, y activar o desactivar accesos del sistema.'
     },
     {
-      keywords: ['recuperar contraseña', 'olvide mi contraseña', 'pregunta de seguridad'],
+      keywords: ['recuperar contrasena', 'olvide mi contrasena', 'pregunta de seguridad', 'recuperar contraseña', 'olvide mi contraseña'],
       answer:
         'En la pantalla de inicio existe el flujo "¿Olvidaste tu contraseña?". El usuario debe consultar su pregunta de seguridad, responderla correctamente y definir una nueva clave.'
     },
     {
-      keywords: ['cerrar sesion', 'salir', 'cerrar sesión'],
+      keywords: ['cerrar sesion', 'salir'],
       answer:
         'Para salir del sistema usa el botón "Cerrar sesión" en la parte superior del panel.'
     }
+  ];
+
+  const blockedQuestionPatterns = [
+    'como importo acudientes',
+    'cómo importo acudientes',
+    'importo acudientes',
+    'importar acudientes'
   ];
 
   function normalize(value) {
     return String(value || '')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, ' ')
       .toLowerCase()
+      .replace(/\s+/g, ' ')
       .trim();
   }
 
@@ -170,6 +200,10 @@
       return null;
     }
 
+    if (blockedQuestionPatterns.some((pattern) => text.includes(normalize(pattern)))) {
+      return null;
+    }
+
     let bestEntry = null;
     let bestScore = 0;
 
@@ -208,11 +242,11 @@
       `Rol actual detectado: ${roleLabel}.`,
       `Etapa visible: ${getCurrentStep()}.`,
       '',
-      'Prueba preguntar algo como:',
-      '- ¿Cómo agrego un estudiante?',
-      '- ¿Cómo envío el correo al acudiente?',
-      role === 'administrador' ? '- ¿Cómo administro usuarios?' : '- ¿Cómo guardo el informe?',
-      '- ¿Cómo importo la planilla?'
+      'Prueba una de estas preguntas predefinidas:',
+      `- ${quickActions[0] || '¿Cómo agrego un estudiante?'}`,
+      `- ${quickActions[1] || '¿Cómo envío el correo al acudiente?'}`,
+      `- ${quickActions[2] || (role === 'administrador' ? '¿Cómo administro usuarios?' : '¿Cómo guardo el informe?')}`,
+      `- ${quickActions[3] || '¿Cómo guardo el informe?'}`
     ].join('\n');
   }
 
@@ -221,7 +255,24 @@
       return 'Escríbeme una pregunta sobre el uso del sistema y te guío paso a paso.';
     }
 
-    if (normalize(message).includes('que puedes hacer') || normalize(message).includes('ayuda')) {
+    const normalizedMessage = normalize(message);
+    if (blockedQuestionPatterns.some((pattern) => normalizedMessage.includes(normalize(pattern)))) {
+      return 'Selecciona una de las preguntas disponibles o escribe una consulta sobre estudiantes, faltas, acudientes, correos, historial o usuarios.';
+    }
+
+    const predefinedMatch = predefinedQuestions.find((entry) => {
+      if (entry.role && entry.role !== role) {
+        return false;
+      }
+
+      return normalize(entry.question) === normalizedMessage;
+    });
+
+    if (predefinedMatch) {
+      return predefinedMatch.answer;
+    }
+
+    if (normalizedMessage.includes('que puedes hacer') || normalizedMessage.includes('ayuda')) {
       return getFallbackAnswer(message);
     }
 
@@ -230,7 +281,7 @@
       return faqMatch.answer;
     }
 
-    return getFallbackAnswer(message);
+    return 'Selecciona una de las preguntas disponibles o escribe una consulta parecida sobre estudiantes, faltas, acudientes, correos, historial o usuarios.';
   }
 
   function scrollMessagesToBottom() {
@@ -278,10 +329,7 @@
   }
 
   function saveState(isOpen) {
-    const payload = {
-      isOpen
-    };
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ isOpen }));
   }
 
   function renderHeader() {
@@ -314,7 +362,7 @@
 
   function openChat() {
     setOpenState(true);
-    setTimeout(() => inputEl.focus(), 80);
+    window.setTimeout(() => inputEl.focus(), 80);
   }
 
   function closeChat() {
@@ -345,11 +393,7 @@
 
     try {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.isOpen) {
-        setOpenState(true);
-      } else {
-        setOpenState(false);
-      }
+      setOpenState(Boolean(parsed && parsed.isOpen));
       return true;
     } catch (_error) {
       sessionStorage.removeItem(STORAGE_KEY);

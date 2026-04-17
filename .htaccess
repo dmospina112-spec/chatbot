@@ -14,6 +14,22 @@ Options -Indexes
     Header always set Access-Control-Allow-Headers "Content-Type"
 </IfModule>
 
+<FilesMatch "^(index|panel_admin|panel_docente)\.php$">
+    <IfModule mod_headers.c>
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "^(styles\.css|chatbot\.js|chatbot\.css)$">
+    <IfModule mod_headers.c>
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
+    </IfModule>
+</FilesMatch>
+
 # Compresión
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json

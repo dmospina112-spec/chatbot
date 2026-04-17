@@ -91,7 +91,16 @@
                         No hay registros previos.
                       </p>
                     </div>
-                    <div class="d-flex justify-content-end gap-2 mt-3">
+                    <div class="d-flex justify-content-end gap-2 mt-3 historial-actions">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-danger btn-historial-eliminar"
+                        id="btnEliminarHistorialSeleccionados"
+                        title="Eliminar del historial disciplinario los registros seleccionados"
+                        disabled
+                      >
+                        Eliminar seleccionados
+                      </button>
                       <button
                         type="button"
                         class="btn btn-sm btn-outline-primary"

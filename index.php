@@ -14,6 +14,12 @@ if (is_array($authUser)) {
 }
 
 header('Content-Type: text/html; charset=UTF-8');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+header('Expires: 0');
+
+$stylesVersion = (string) filemtime(__DIR__ . '/styles/styles.css');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -25,7 +31,7 @@ header('Content-Type: text/html; charset=UTF-8');
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles/styles.css?v=20260408-22">
+  <link rel="stylesheet" href="styles/styles.css?v=<?php echo htmlspecialchars($stylesVersion, ENT_QUOTES, 'UTF-8'); ?>">
 </head>
 <body class="site-body login-page">
   <main class="login-shell container-xxl">
@@ -192,6 +198,18 @@ header('Content-Type: text/html; charset=UTF-8');
       </section>
     </section>
   </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-shell">
+      <div class="site-footer-brand">
+        <img src="img/Logo.png" alt="Logo institucional" class="site-footer-logo">
+        <div>
+          <strong>Institución Educativa Gilberto Alzate Avendaño</strong>
+          <p>Plataforma de seguimiento disciplinario.</p>
+        </div>
+      </div>
+    </div>
+  </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/script.js?v=20260408-8"></script>

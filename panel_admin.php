@@ -12,6 +12,15 @@ if (!is_array($authUser) || (($authUser['rol'] ?? '') !== 'administrador')) {
 }
 
 header('Content-Type: text/html; charset=UTF-8');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+header('Expires: 0');
+
+$chatbotCssVersion = (string) filemtime(__DIR__ . '/chatbot/chatbot.css');
+$chatbotJsVersion = (string) filemtime(__DIR__ . '/chatbot/chatbot.js') . '-20260416';
+$estudiantesJsVersion = (string) filemtime(__DIR__ . '/js/estudiantes.js');
+$stylesVersion = (string) filemtime(__DIR__ . '/styles/styles.css');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -23,8 +32,8 @@ header('Content-Type: text/html; charset=UTF-8');
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles/styles.css?v=20260408-22">
-  <link rel="stylesheet" href="chatbot/chatbot.css">
+  <link rel="stylesheet" href="styles/styles.css?v=<?php echo htmlspecialchars($stylesVersion, ENT_QUOTES, 'UTF-8'); ?>">
+  <link rel="stylesheet" href="chatbot/chatbot.css?v=<?php echo htmlspecialchars($chatbotCssVersion, ENT_QUOTES, 'UTF-8'); ?>">
 </head>
 <body class="site-body admin-panel-page">
   <script>
@@ -204,6 +213,18 @@ header('Content-Type: text/html; charset=UTF-8');
     <?php include __DIR__ . '/panel-content.php'; ?>
   </main>
 
+  <footer class="site-footer">
+    <div class="site-footer-shell">
+      <div class="site-footer-brand">
+        <img src="img/Logo.png" alt="Logo institucional" class="site-footer-logo">
+        <div>
+          <strong>Institución Educativa Gilberto Alzate Avendaño</strong>
+          <p>Panel administrativo para control de usuarios, accesos y operación institucional.</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
   <script>
     (function () {
       const badge = document.getElementById('userGreeting');
@@ -220,7 +241,7 @@ header('Content-Type: text/html; charset=UTF-8');
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="js/script.js?v=20260408-8"></script>
-  <script src="js/estudiantes.js?v=20260408-12"></script>
+  <script src="js/estudiantes.js?v=<?php echo htmlspecialchars($estudiantesJsVersion, ENT_QUOTES, 'UTF-8'); ?>"></script>
   <script src="js/admin-usuarios.js?v=20260408-4"></script>
 
   <div id="chatbot-bubble" aria-hidden="false" title="Abrir asistente virtual">💬</div>
@@ -235,6 +256,6 @@ header('Content-Type: text/html; charset=UTF-8');
       <button id="chatbot-send" title="Enviar mensaje (Enter)">Enviar</button>
     </div>
   </div>
-  <script src="chatbot/chatbot.js" defer></script>
+  <script src="chatbot/chatbot.js?v=<?php echo htmlspecialchars($chatbotJsVersion, ENT_QUOTES, 'UTF-8'); ?>" defer></script>
 </body>
 </html>

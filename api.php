@@ -2871,6 +2871,111 @@ function eliminarEstudiante(mysqli $conn, array $data): void
     ]);
 }
 
+function eliminarRegistrosHistorial(mysqli $conn, array $data): void
+{
+    $estudianteId = (int) ($data['estudiante_id'] ?? 0);
+    $recordIdsRaw = $data['record_ids'] ?? [];
+
+    if ($estudianteId <= 0) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Debes indicar un estudiante válido para eliminar registros.',
+        ]);
+    }
+
+    if (!is_array($recordIdsRaw)) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Debes enviar una lista válida de registros para eliminar.',
+        ]);
+    }
+
+    $recordIds = array_values(array_unique(array_filter(
+        array_map(static fn($value) => (int) $value, $recordIdsRaw),
+        static fn($value) => $value > 0
+    )));
+
+    if ($recordIds === []) {
+        jsonResponse(400, [
+            'success' => false,
+            'error' => 'Selecciona al menos un registro válido para eliminar.',
+        ]);
+    }
+
+    if (!estudianteActivoExiste($conn, $estudianteId)) {
+        jsonResponse(404, [
+            'success' => false,
+            'error' => 'El estudiante seleccionado no existe o está inactivo.',
+        ]);
+    }
+
+    $idList = implode(',', $recordIds);
+    $conn->begin_transaction();
+
+    try {
+        $lookup = $conn->prepare(
+            "SELECT COUNT(*) AS total
+             FROM registros_disciplinarios
+             WHERE estudiante_id = ? AND id IN ({$idList})"
+        );
+
+        if (!$lookup) {
+            throw new RuntimeException('No se pudo validar el historial seleccionado antes de eliminar.');
+        }
+
+        $lookup->bind_param('i', $estudianteId);
+        $lookup->execute();
+        $lookupResult = $lookup->get_result();
+        $lookupRow = $lookupResult ? $lookupResult->fetch_assoc() : null;
+        $lookup->close();
+
+        $registrosValidos = (int) ($lookupRow['total'] ?? 0);
+        if ($registrosValidos <= 0) {
+            $conn->rollback();
+            jsonResponse(404, [
+                'success' => false,
+                'error' => 'Los registros seleccionados no existen o ya fueron eliminados.',
+            ]);
+        }
+
+        $delete = $conn->prepare(
+            "DELETE FROM registros_disciplinarios
+             WHERE estudiante_id = ? AND id IN ({$idList})"
+        );
+
+        if (!$delete) {
+            throw new RuntimeException('No se pudo preparar la eliminación del historial disciplinario.');
+        }
+
+        $delete->bind_param('i', $estudianteId);
+
+        if (!$delete->execute()) {
+            $delete->close();
+            throw new RuntimeException('No se pudieron eliminar los registros seleccionados.');
+        }
+
+        $deletedCount = (int) $delete->affected_rows;
+        $delete->close();
+        $conn->commit();
+    } catch (Throwable $exception) {
+        $conn->rollback();
+        jsonResponse(500, [
+            'success' => false,
+            'error' => $exception->getMessage(),
+        ]);
+    }
+
+    $message = $deletedCount === 1
+        ? 'Registro disciplinario eliminado correctamente.'
+        : "Se eliminaron {$deletedCount} registros disciplinarios correctamente.";
+
+    jsonResponse(200, [
+        'success' => true,
+        'message' => $message,
+        'deleted_count' => $deletedCount,
+    ]);
+}
+
 function guardarRegistro(mysqli $conn, array $data): void
 {
     $estudianteId = (int) ($data['estudiante_id'] ?? 0);
@@ -3069,6 +3174,10 @@ if ($method === 'POST') {
 
         case 'guardarRegistro':
             guardarRegistro($conn, $payload);
+            break;
+
+        case 'eliminarRegistrosHistorial':
+            eliminarRegistrosHistorial($conn, $payload);
             break;
 
         case 'guardarAcudiente':

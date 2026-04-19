@@ -31,6 +31,7 @@ let planillaImportadaEnSesion = false;
 let acudienteFetchToken = 0;
 let workflowButtons = [];
 let adminMetricEstudiantes;
+let registroGuardadoPendienteId = null;
 
 const WORKFLOW_STEPS = ['estudiantes', 'plantillas', 'estimulos', 'acudiente'];
 
@@ -153,6 +154,7 @@ function bindEvents() {
     .querySelectorAll('#disciplinariasAccordion input[type="checkbox"], #seccionEstimulos input[type="checkbox"]')
     .forEach((checkbox) => {
       checkbox.addEventListener('change', () => {
+        limpiarRegistroGuardadoPendiente();
         generarNotificacionAcudiente(false);
       });
     });
@@ -1377,6 +1379,8 @@ async function eliminarEstudiante(id) {
 }
 
 function limpiarSeleccionesPlantilla() {
+  limpiarRegistroGuardadoPendiente();
+
   document
     .querySelectorAll('#disciplinariasAccordion input[type="checkbox"], #seccionEstimulos input[type="checkbox"]')
     .forEach((checkbox) => {
@@ -1512,6 +1516,8 @@ async function avanzarAAcudiente() {
     return;
   }
 
+  seccionEstudiantes?.classList.add('d-none');
+  seccionPlantillas?.classList.add('d-none');
   seccionEstimulos?.classList.add('d-none');
   seccionAcudiente?.classList.remove('d-none');
 
@@ -1909,6 +1915,88 @@ function limpiarBorradorAcudienteLocal(estudianteId) {
   sessionStorage.removeItem(`acudienteBorrador_${Number(estudianteId)}`);
 }
 
+function limpiarRegistroGuardadoPendiente() {
+  registroGuardadoPendienteId = null;
+}
+
+function obtenerDocenteIdSesion() {
+  const docenteRaw = sessionStorage.getItem('docente');
+  if (!docenteRaw) {
+    return 0;
+  }
+
+  try {
+    const docente = JSON.parse(docenteRaw);
+    return Number(docente.id || 0);
+  } catch (_error) {
+    return 0;
+  }
+}
+
+function construirPayloadRegistroActual() {
+  return {
+    estudiante_id: Number(estudianteSeleccionado.id),
+    docente_id: obtenerDocenteIdSesion(),
+    faltas: obtenerFaltasPorTipo(),
+    estimulos: obtenerSeleccion('#seccionEstimulos input[type="checkbox"]'),
+  };
+}
+
+async function guardarRegistroActual({ guardarNotificacion = true } = {}) {
+  if (!estudianteSeleccionado) {
+    throw new Error('No hay un estudiante seleccionado para guardar el registro.');
+  }
+
+  if (registroGuardadoPendienteId) {
+    if (guardarNotificacion) {
+      await guardarNotificacionAcudiente(registroGuardadoPendienteId);
+    }
+
+    return {
+      id: registroGuardadoPendienteId,
+      message: 'Registro disciplinario ya estaba guardado correctamente.',
+      reutilizado: true,
+    };
+  }
+
+  const result = await request('guardarRegistro', 'POST', construirPayloadRegistroActual());
+  registroGuardadoPendienteId = Number(result.id || 0) || null;
+
+  if (guardarNotificacion && registroGuardadoPendienteId) {
+    await guardarNotificacionAcudiente(registroGuardadoPendienteId);
+  }
+
+  return {
+    ...result,
+    reutilizado: false,
+  };
+}
+
+function reiniciarFlujoDespuesDeGuardar(estudianteIdFinal) {
+  limpiarSeleccionesPlantilla();
+  estudianteSeleccionado = null;
+  sessionStorage.removeItem('estudianteActual');
+  limpiarBorradorAcudienteLocal(estudianteIdFinal);
+
+  if (selectEstudiante) {
+    selectEstudiante.value = '';
+  }
+
+  infoEstudiante?.classList.add('d-none');
+  seccionAcudiente?.classList.add('d-none');
+  seccionEstimulos?.classList.add('d-none');
+  seccionPlantillas?.classList.add('d-none');
+  seccionEstudiantes?.classList.remove('d-none');
+  updateWorkflowUI('estudiantes');
+
+  llenarFormularioAcudiente();
+  actualizarEstadoAcudiente();
+  document.getElementById('asuntoNotificacionAcudiente').value = 'Informe disciplinario del estudiante';
+  document.getElementById('notificacionAcudienteTexto').value = '';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 async function enviarCorreoAcudiente() {
   if (!estudianteSeleccionado) {
     alert('Selecciona un estudiante antes de enviar el correo.');
@@ -1936,6 +2024,7 @@ async function enviarCorreoAcudiente() {
 
   const asunto = asuntoInput?.value.trim() || '';
   let mensaje = mensajeInput?.value.trim() || '';
+  const estudianteIdActual = Number(estudianteSeleccionado.id);
 
   if (!asunto || !mensaje) {
     alert('No se pudo construir el asunto o mensaje de notificación.');
@@ -1953,18 +2042,24 @@ async function enviarCorreoAcudiente() {
   }
 
   try {
+    const registro = await guardarRegistroActual({ guardarNotificacion: false });
     const result = await request('enviarCorreoAcudiente', 'POST', {
-      estudiante_id: Number(estudianteSeleccionado.id),
+      registro_id: Number(registro.id),
+      estudiante_id: estudianteIdActual,
       correo,
       asunto,
       mensaje,
     });
 
     guardarBorradorAcudienteLocal();
-    alert(result.message || 'Correo enviado correctamente.');
+    alert(`${result.message || 'Correo enviado correctamente.'} ID del registro: ${registro.id}`);
+    reiniciarFlujoDespuesDeGuardar(estudianteIdActual);
   } catch (error) {
     console.error(error);
-    alert(`No se pudo enviar el correo: ${error.message}`);
+    const detalleRegistro = registroGuardadoPendienteId
+      ? ` El registro disciplinario quedó guardado con ID ${registroGuardadoPendienteId}.`
+      : '';
+    alert(`No se pudo completar el envío del correo:${detalleRegistro} ${error.message}`.trim());
   }
 }
 
@@ -2023,58 +2118,12 @@ async function finalizarRegistro() {
     alert('No hay un estudiante seleccionado para guardar el registro.');
     return;
   }
-
-  const docenteRaw = sessionStorage.getItem('docente');
-  let docenteId = 0;
-
-  if (docenteRaw) {
-    try {
-      const docente = JSON.parse(docenteRaw);
-      docenteId = Number(docente.id || 0);
-    } catch (_error) {
-      docenteId = 0;
-    }
-  }
-
-  const payload = {
-    estudiante_id: Number(estudianteSeleccionado.id),
-    docente_id: docenteId,
-    faltas: obtenerFaltasPorTipo(),
-    estimulos: obtenerSeleccion('#seccionEstimulos input[type="checkbox"]'),
-  };
+  const estudianteIdFinal = Number(estudianteSeleccionado.id);
 
   try {
-    const estudianteIdFinal = Number(estudianteSeleccionado.id);
-    const result = await request('guardarRegistro', 'POST', payload);
-    await guardarNotificacionAcudiente(result.id);
-
+    const result = await guardarRegistroActual();
     alert(`${result.message || 'Registro guardado'} ID: ${result.id}`);
-
-    document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
-      checkbox.checked = false;
-    });
-
-    estudianteSeleccionado = null;
-    sessionStorage.removeItem('estudianteActual');
-    limpiarBorradorAcudienteLocal(estudianteIdFinal);
-
-    if (selectEstudiante) {
-      selectEstudiante.value = '';
-    }
-
-    infoEstudiante?.classList.add('d-none');
-    seccionAcudiente?.classList.add('d-none');
-    seccionEstimulos?.classList.add('d-none');
-    seccionPlantillas?.classList.add('d-none');
-    seccionEstudiantes?.classList.remove('d-none');
-    updateWorkflowUI('estudiantes');
-
-    llenarFormularioAcudiente();
-    actualizarEstadoAcudiente();
-    document.getElementById('asuntoNotificacionAcudiente').value = 'Informe disciplinario del estudiante';
-    document.getElementById('notificacionAcudienteTexto').value = '';
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    reiniciarFlujoDespuesDeGuardar(estudianteIdFinal);
   } catch (error) {
     console.error(error);
     alert(`No se pudo guardar el registro: ${error.message}`);

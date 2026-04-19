@@ -18,14 +18,20 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
 header('Pragma: no-cache');
 header('Expires: 0');
+header_remove('ETag');
+header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 
 $stylesVersion = (string) filemtime(__DIR__ . '/styles/styles.css');
+$scriptJsVersion = (string) filemtime(__DIR__ . '/js/script.js');
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>App Educativa Docente</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -212,7 +218,7 @@ $stylesVersion = (string) filemtime(__DIR__ . '/styles/styles.css');
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="js/script.js?v=20260408-8"></script>
+  <script src="js/script.js?v=<?php echo htmlspecialchars($scriptJsVersion, ENT_QUOTES, 'UTF-8'); ?>"></script>
 
 </body>
 </html>

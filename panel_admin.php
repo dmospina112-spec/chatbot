@@ -16,17 +16,24 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
 header('Pragma: no-cache');
 header('Expires: 0');
+header_remove('ETag');
+header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 
 $chatbotCssVersion = (string) filemtime(__DIR__ . '/chatbot/chatbot.css');
 $chatbotJsVersion = (string) filemtime(__DIR__ . '/chatbot/chatbot.js') . '-20260416';
 $estudiantesJsVersion = (string) filemtime(__DIR__ . '/js/estudiantes.js');
 $stylesVersion = (string) filemtime(__DIR__ . '/styles/styles.css');
+$scriptJsVersion = (string) filemtime(__DIR__ . '/js/script.js');
+$adminUsuariosJsVersion = (string) filemtime(__DIR__ . '/js/admin-usuarios.js');
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Panel Administrativo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -240,9 +247,9 @@ $stylesVersion = (string) filemtime(__DIR__ . '/styles/styles.css');
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <script src="js/script.js?v=20260408-8"></script>
+  <script src="js/script.js?v=<?php echo htmlspecialchars($scriptJsVersion, ENT_QUOTES, 'UTF-8'); ?>"></script>
   <script src="js/estudiantes.js?v=<?php echo htmlspecialchars($estudiantesJsVersion, ENT_QUOTES, 'UTF-8'); ?>"></script>
-  <script src="js/admin-usuarios.js?v=20260408-4"></script>
+  <script src="js/admin-usuarios.js?v=<?php echo htmlspecialchars($adminUsuariosJsVersion, ENT_QUOTES, 'UTF-8'); ?>"></script>
 
   <div id="chatbot-bubble" aria-hidden="false" title="Abrir asistente virtual">💬</div>
   <div id="chatbot-window" role="dialog" aria-label="Asistente Virtual">

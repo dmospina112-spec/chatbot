@@ -521,7 +521,7 @@
           </button>
           <div class="d-flex gap-2">
             <button type="button" class="btn btn-primary d-flex align-items-center gap-2" id="btnEnviarCorreoAcudiente">
-              <span>Enviar al correo electrónico</span>
+              <span>Guardar y enviar al correo electrónico</span>
               <span aria-hidden="true" class="fw-bold">&#8594;</span>
             </button>
             <button type="button" class="btn btn-success d-flex align-items-center gap-2" id="btnVolverInicio">

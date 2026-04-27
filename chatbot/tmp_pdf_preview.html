@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vista previa PDF disciplinario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/styles.css?v=20260408-22">
+</head>
+<body style="margin:0;background:#f4f8fd;font-family:'Manrope','Segoe UI',sans-serif;">
+  <div class="disciplinary-pdf-sheet">
+    <div class="disciplinary-report-preview">
+      <div class="disciplinary-report-watermark" aria-hidden="true">
+        <img src="img/Logo.png" alt="">
+      </div>
+
+      <header class="disciplinary-report-header">
+        <div class="disciplinary-report-brand">
+          <img src="img/Logo.png" alt="Logo institucional" class="disciplinary-report-logo">
+          <div>
+            <span class="disciplinary-report-kicker">Reporte disciplinario PDF</span>
+            <h3 class="disciplinary-report-heading">Reporte disciplinario del estudiante</h3>
+            <p class="disciplinary-report-copy">Documento institucional con las faltas disciplinarias seleccionadas para el estudiante.</p>
+          </div>
+        </div>
+        <div class="disciplinary-report-meta-card">
+          <span class="disciplinary-report-meta-label">Generado por</span>
+          <strong class="disciplinary-report-meta-value">Docente de prueba</strong>
+          <p class="disciplinary-report-copy mb-0">Fecha de emisión: 08 abr 2026, 05:05 p. m.</p>
+        </div>
+      </header>
+
+      <section class="disciplinary-report-student">
+        <article class="disciplinary-report-student-card">
+          <span class="disciplinary-report-kicker">Estudiante seleccionado</span>
+          <h4 class="disciplinary-report-student-name">Verónica Acosta</h4>
+          <p class="disciplinary-report-student-meta mb-0">
+            Matrícula: <strong>EST024</strong><br>
+            Fecha del reporte: <strong>08 abr 2026, 05:05 p. m.</strong>
+          </p>
+        </article>
+      </section>
+
+      <section class="disciplinary-report-section">
+        <h4 class="disciplinary-report-section-title">Faltas disciplinarias seleccionadas</h4>
+        <div class="disciplinary-report-group-grid">
+          <article class="disciplinary-report-group">
+            <h4 class="disciplinary-report-group-title">Faltas tipo 1</h4>
+            <ul class="disciplinary-report-list">
+              <li>Falta con su higiene y presentación personal.</li>
+              <li>Coloca apodos a cualquier miembro de la comunidad educativa.</li>
+            </ul>
+          </article>
+
+          <article class="disciplinary-report-group disciplinary-report-group--warning">
+            <h4 class="disciplinary-report-group-title">Faltas tipo 2</h4>
+            <p class="disciplinary-report-empty">Sin elementos registrados en esta sección.</p>
+          </article>
+
+          <article class="disciplinary-report-group disciplinary-report-group--danger">
+            <h4 class="disciplinary-report-group-title">Faltas tipo 3</h4>
+            <p class="disciplinary-report-empty">Sin elementos registrados en esta sección.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="disciplinary-report-section disciplinary-report-footer">
+        <div class="disciplinary-report-footer-grid">
+          <div class="disciplinary-report-signatures">
+            <div class="disciplinary-report-signature">
+              <span>Docente responsable</span>
+            </div>
+            <div class="disciplinary-report-signature">
+              <span>Coordinación / convivencia</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

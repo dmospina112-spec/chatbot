@@ -550,17 +550,12 @@ function requireAdminAccess(): array
 
 function buildDocenteAdminPayload(array $row, int $currentUserId = 0): array
 {
-    $questionCode = normalizeSecurityQuestionCode($row['pregunta_seguridad'] ?? '');
-    $answerHash = (string) ($row['respuesta_seguridad_hash'] ?? '');
-
     return [
         'id' => (int) ($row['id'] ?? 0),
         'usuario' => (string) ($row['usuario'] ?? ''),
         'nombre' => (string) ($row['nombre'] ?? ''),
         'apellido' => (string) ($row['apellido'] ?? ''),
         'correo' => (string) ($row['correo'] ?? ''),
-        'pregunta_seguridad' => $questionCode,
-        'tiene_respuesta_seguridad' => $questionCode !== '' && $answerHash !== '',
         'rol' => resolveDocenteRole($row),
         'activo' => (int) ($row['activo'] ?? 1) === 1,
         'fecha_registro' => (string) ($row['fecha_registro'] ?? ''),
@@ -571,7 +566,7 @@ function buildDocenteAdminPayload(array $row, int $currentUserId = 0): array
 function findDocenteById(mysqli $conn, int $id): ?array
 {
     $stmt = $conn->prepare(
-        'SELECT id, usuario, nombre, apellido, correo, pregunta_seguridad, respuesta_seguridad_hash, rol, activo, fecha_registro
+        'SELECT id, usuario, nombre, apellido, correo, rol, activo, fecha_registro
          FROM docentes
          WHERE id = ?
          LIMIT 1'
@@ -2388,7 +2383,7 @@ function obtenerUsuariosAdmin(mysqli $conn): void
 {
     $authUser = requireAdminAccess();
     $result = $conn->query(
-        'SELECT id, usuario, nombre, apellido, correo, pregunta_seguridad, respuesta_seguridad_hash, rol, activo, fecha_registro
+        'SELECT id, usuario, nombre, apellido, correo, rol, activo, fecha_registro
          FROM docentes
          ORDER BY activo DESC,
                   CASE WHEN LOWER(COALESCE(rol, "")) = "administrador" OR usuario = "admin" THEN 0 ELSE 1 END,
@@ -2419,7 +2414,6 @@ function crearUsuarioAdmin(mysqli $conn, array $data): void
 {
     requireAdminAccess();
     $input = validateDocenteInput($conn, $data, true, true);
-    $securityInput = validateSecurityQuestionInput($data, true);
 
     $hashedPassword = password_hash($input['contrasena'], PASSWORD_DEFAULT);
     if ($hashedPassword === false) {
@@ -2429,27 +2423,9 @@ function crearUsuarioAdmin(mysqli $conn, array $data): void
         ]);
     }
 
-    $hashedSecurityAnswer = password_hash($securityInput['respuesta_seguridad'], PASSWORD_DEFAULT);
-    if ($hashedSecurityAnswer === false) {
-        jsonResponse(500, [
-            'success' => false,
-            'error' => 'No se pudo procesar la respuesta de seguridad.',
-        ]);
-    }
-
     $stmt = $conn->prepare(
-        'INSERT INTO docentes (
-            usuario,
-            password,
-            nombre,
-            apellido,
-            correo,
-            pregunta_seguridad,
-            respuesta_seguridad_hash,
-            rol,
-            activo
-        )
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO docentes (usuario, password, nombre, apellido, correo, rol, activo)
+         VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
 
     if (!$stmt) {
@@ -2460,14 +2436,12 @@ function crearUsuarioAdmin(mysqli $conn, array $data): void
     }
 
     $stmt->bind_param(
-        'ssssssssi',
+        'ssssssi',
         $input['usuario'],
         $hashedPassword,
         $input['nombre'],
         $input['apellido'],
         $input['correo'],
-        $securityInput['pregunta_seguridad'],
-        $hashedSecurityAnswer,
         $input['rol'],
         $input['activo']
     );
@@ -2516,11 +2490,6 @@ function actualizarUsuarioAdmin(mysqli $conn, array $data): void
     $currentRole = resolveDocenteRole($currentRow);
     $willRemainAdmin = $input['rol'] === 'administrador';
     $willRemainActive = (int) $input['activo'] === 1;
-    $currentQuestion = normalizeSecurityQuestionCode($currentRow['pregunta_seguridad'] ?? '');
-    $currentAnswerHash = (string) ($currentRow['respuesta_seguridad_hash'] ?? '');
-    $securityInput = validateSecurityQuestionInput($data, false);
-    $nextQuestion = $currentQuestion;
-    $nextAnswerHash = $currentAnswerHash;
 
     if ($isCurrentUser && (!$willRemainAdmin || !$willRemainActive)) {
         jsonResponse(409, [
@@ -2535,37 +2504,6 @@ function actualizarUsuarioAdmin(mysqli $conn, array $data): void
                 'success' => false,
                 'error' => 'Debe existir al menos un administrador activo en el sistema.',
             ]);
-        }
-    }
-
-    if ($securityInput['pregunta_seguridad'] === '' && $securityInput['respuesta_seguridad'] !== '') {
-        jsonResponse(400, [
-            'success' => false,
-            'error' => 'Selecciona una pregunta de seguridad para guardar la respuesta.',
-        ]);
-    }
-
-    if ($securityInput['pregunta_seguridad'] !== '') {
-        $questionChanged = $securityInput['pregunta_seguridad'] !== $currentQuestion;
-
-        if ($securityInput['respuesta_seguridad'] === '') {
-            if ($questionChanged || $currentAnswerHash === '') {
-                jsonResponse(400, [
-                    'success' => false,
-                    'error' => 'Debes escribir una respuesta de seguridad para guardar esa configuración.',
-                ]);
-            }
-        } else {
-            $hashedSecurityAnswer = password_hash($securityInput['respuesta_seguridad'], PASSWORD_DEFAULT);
-            if ($hashedSecurityAnswer === false) {
-                jsonResponse(500, [
-                    'success' => false,
-                    'error' => 'No se pudo procesar la respuesta de seguridad.',
-                ]);
-            }
-
-            $nextQuestion = $securityInput['pregunta_seguridad'];
-            $nextAnswerHash = $hashedSecurityAnswer;
         }
     }
 
@@ -2586,8 +2524,6 @@ function actualizarUsuarioAdmin(mysqli $conn, array $data): void
              nombre = ?,
              apellido = ?,
              correo = ?,
-             pregunta_seguridad = ?,
-             respuesta_seguridad_hash = ?,
              rol = ?,
              activo = ?,
              password = COALESCE(NULLIF(?, ""), password)
@@ -2602,13 +2538,11 @@ function actualizarUsuarioAdmin(mysqli $conn, array $data): void
     }
 
     $stmt->bind_param(
-        'sssssssisi',
+        'sssssisi',
         $input['usuario'],
         $input['nombre'],
         $input['apellido'],
         $input['correo'],
-        $nextQuestion,
-        $nextAnswerHash,
         $input['rol'],
         $input['activo'],
         $hashedPassword,

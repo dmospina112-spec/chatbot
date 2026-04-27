@@ -14,13 +14,10 @@ let adminUsuariosRefreshBtn;
 let adminUsuariosCancelBtn;
 let adminUsuariosSubmitBtn;
 let adminUsuariosPasswordHelp;
-let adminUsuariosSecurityHelp;
 let adminMetricUsuarios;
 let adminMetricActivos;
 let adminUsersModalElement;
 let adminUsersModalInstance;
-let adminCurrentSecurityQuestion = '';
-let adminCurrentHasSecurityAnswer = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
   adminUsuariosSection = document.getElementById('seccionUsuariosAdmin');
@@ -44,7 +41,6 @@ function cacheAdminUsersDom() {
   adminUsuariosCancelBtn = document.getElementById('btnCancelarUsuarioAdmin');
   adminUsuariosSubmitBtn = document.getElementById('btnGuardarUsuarioAdmin');
   adminUsuariosPasswordHelp = document.getElementById('adminPasswordHelp');
-  adminUsuariosSecurityHelp = document.getElementById('adminSecurityHelp');
   adminMetricUsuarios = document.getElementById('adminMetricUsuarios');
   adminMetricActivos = document.getElementById('adminMetricActivos');
   adminUsersModalElement = document.getElementById('adminUsersModal');
@@ -389,28 +385,14 @@ function updateAdminFormMode() {
       ? 'Opcional al editar. Si la dejas vacia, se conserva la contraseña actual.'
       : 'Obligatoria al crear. Debe tener al menos 8 caracteres.';
   }
-  if (adminUsuariosSecurityHelp) {
-    if (!isEditing) {
-      adminUsuariosSecurityHelp.textContent = 'Obligatorias al crear. Se usaran para recuperar la contrasena si el usuario la olvida.';
-      return;
-    }
-
-    adminUsuariosSecurityHelp.textContent = adminCurrentSecurityQuestion && adminCurrentHasSecurityAnswer
-      ? 'La pregunta actual queda seleccionada. Deja la respuesta vacia para conservarla o escribe una nueva para reemplazarla.'
-      : 'Si deseas habilitar la recuperacion por pregunta de seguridad, selecciona una pregunta y escribe su respuesta.';
-  }
 }
 
 function resetAdminUserForm() {
   adminUserEditingId = null;
-  adminCurrentSecurityQuestion = '';
-  adminCurrentHasSecurityAnswer = false;
   adminUsuariosForm?.reset();
   document.getElementById('adminUsuarioId').value = '';
   document.getElementById('adminRol').value = 'docente';
   document.getElementById('adminEstado').value = '1';
-  document.getElementById('adminPreguntaSeguridad').value = '';
-  document.getElementById('adminRespuestaSeguridad').value = '';
   document.getElementById('adminRol').disabled = false;
   document.getElementById('adminEstado').disabled = false;
   updateAdminFormMode();
@@ -419,8 +401,6 @@ function resetAdminUserForm() {
 function fillAdminUserForm(user) {
   adminUsersModalInstance?.show();
   adminUserEditingId = Number(user.id);
-  adminCurrentSecurityQuestion = user.pregunta_seguridad || '';
-  adminCurrentHasSecurityAnswer = Boolean(user.tiene_respuesta_seguridad);
   document.getElementById('adminUsuarioId').value = String(user.id);
   document.getElementById('adminNombre').value = user.nombre || '';
   document.getElementById('adminApellido').value = user.apellido || '';
@@ -428,8 +408,6 @@ function fillAdminUserForm(user) {
   document.getElementById('adminCorreo').value = user.correo || '';
   document.getElementById('adminRol').value = user.rol || 'docente';
   document.getElementById('adminEstado').value = user.activo ? '1' : '0';
-  document.getElementById('adminPreguntaSeguridad').value = user.pregunta_seguridad || '';
-  document.getElementById('adminRespuestaSeguridad').value = '';
   document.getElementById('adminContrasena').value = '';
   document.getElementById('adminContrasenaConfirmacion').value = '';
   document.getElementById('adminRol').disabled = Boolean(user.es_actual);
@@ -448,8 +426,6 @@ function buildAdminUserPayload() {
     correo: document.getElementById('adminCorreo').value.trim().toLowerCase(),
     rol: document.getElementById('adminRol').value,
     activo: document.getElementById('adminEstado').value === '1',
-    pregunta_seguridad: document.getElementById('adminPreguntaSeguridad').value,
-    respuesta_seguridad: document.getElementById('adminRespuestaSeguridad').value.trim(),
     contrasena: document.getElementById('adminContrasena').value,
     confirmacion: document.getElementById('adminContrasenaConfirmacion').value,
   };
@@ -470,30 +446,6 @@ function validateAdminUserPayload(payload, isEditing) {
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.correo)) {
     throw new Error('Ingresa un correo electronico valido.');
-  }
-
-  if (!isEditing && (!payload.pregunta_seguridad || !payload.respuesta_seguridad)) {
-    throw new Error('Selecciona una pregunta de seguridad y escribe su respuesta.');
-  }
-
-  if (payload.respuesta_seguridad && payload.respuesta_seguridad.length < 3) {
-    throw new Error('La respuesta de seguridad debe tener al menos 3 caracteres.');
-  }
-
-  if (isEditing) {
-    const questionChanged = payload.pregunta_seguridad !== adminCurrentSecurityQuestion;
-
-    if (!payload.pregunta_seguridad && payload.respuesta_seguridad) {
-      throw new Error('Selecciona una pregunta de seguridad para guardar la respuesta.');
-    }
-
-    if (questionChanged && payload.pregunta_seguridad && !payload.respuesta_seguridad) {
-      throw new Error('Si cambias la pregunta de seguridad, tambien debes escribir una nueva respuesta.');
-    }
-
-    if (!questionChanged && payload.pregunta_seguridad && !adminCurrentHasSecurityAnswer && !payload.respuesta_seguridad) {
-      throw new Error('Esta cuenta no tiene respuesta de seguridad configurada. Escribe una para habilitar la recuperacion de contrasena.');
-    }
   }
 
   if (!isEditing && payload.contrasena.length < 8) {
@@ -525,8 +477,6 @@ async function submitAdminUserForm() {
       correo: payload.correo,
       rol: payload.rol,
       activo: payload.activo,
-      pregunta_seguridad: payload.pregunta_seguridad,
-      respuesta_seguridad: payload.respuesta_seguridad,
       contrasena: payload.contrasena,
     });
 

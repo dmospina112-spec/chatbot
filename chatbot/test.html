@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API - App Educativa</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <h1 class="mb-4">Panel de Pruebas API</h1>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Test 1: Estado API</h5>
+                        <button class="btn btn-primary" id="testAPI">Probar API</button>
+                        <div id="resultAPI" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Test 2: Login Docente</h5>
+                        <div class="mb-2"><input type="text" id="lUsuario" class="form-control" value="admin" placeholder="Usuario"></div>
+                        <div class="mb-2"><input type="password" id="lContrasena" class="form-control" value="1234" placeholder="Contraseña"></div>
+                        <button class="btn btn-primary" id="testLogin">Probar Login</button>
+                        <div id="resultLogin" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Test 3: Listar Estudiantes</h5>
+                        <button class="btn btn-primary" id="testEstudiantes">Cargar Estudiantes</button>
+                        <div id="resultEstudiantes" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Test 4: Crear Estudiante</h5>
+                        <div class="mb-2"><input type="text" class="form-control" id="tNombre" placeholder="Nombre"></div>
+                        <div class="mb-2"><input type="text" class="form-control" id="tApellido" placeholder="Apellido"></div>
+                        <div class="mb-2"><input type="text" class="form-control" id="tMatricula" placeholder="Matrícula"></div>
+                        <button class="btn btn-success" id="testAgregar">Crear</button>
+                        <div id="resultAgregar" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Log</h5>
+                <div id="console" class="bg-dark text-light p-3 rounded" style="height:220px; overflow:auto; font-family:monospace; font-size:12px;"></div>
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-4 mb-0">
+            <ol class="mb-0">
+                <li>Inicia Apache y MySQL en XAMPP.</li>
+                <li>Ejecuta <code>database.sql</code> en phpMyAdmin.</li>
+                <li>Confirma que exista la BD <code>app_educativa_xampp</code>.</li>
+                <li>Ejecuta las pruebas de esta página.</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const API = 'api.php';
+
+        function log(type, text) {
+            const box = document.getElementById('console');
+            const line = document.createElement('p');
+            line.className = 'mb-1';
+            line.innerHTML = `<span class="${type === 'ok' ? 'text-success' : 'text-danger'}">${type === 'ok' ? 'OK' : 'ERR'}</span> ${text}`;
+            box.appendChild(line);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function fetchJson(url, options = {}) {
+            const response = await fetch(url, options);
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok || body.success === false) {
+                throw new Error(body.error || `HTTP ${response.status}`);
+            }
+            return body;
+        }
+
+        document.getElementById('testAPI').addEventListener('click', async () => {
+            const div = document.getElementById('resultAPI');
+            div.innerHTML = 'Consultando...';
+
+            try {
+                const data = await fetchJson(`${API}?action=test`);
+                div.innerHTML = `<div class="alert alert-success mb-0">API activa. BD: <strong>${data.database || 'N/D'}</strong></div>`;
+                log('ok', 'Test API correcto');
+            } catch (error) {
+                div.innerHTML = `<div class="alert alert-danger mb-0">${error.message}</div>`;
+                log('err', `Test API falló: ${error.message}`);
+            }
+        });
+
+        document.getElementById('testLogin').addEventListener('click', async () => {
+            const div = document.getElementById('resultLogin');
+            const usuario = document.getElementById('lUsuario').value.trim();
+            const contrasena = document.getElementById('lContrasena').value.trim();
+            div.innerHTML = 'Probando login...';
+
+            try {
+                const data = await fetchJson(`${API}?action=login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario, contrasena })
+                });
+
+                div.innerHTML = `<div class="alert alert-success mb-0">Login correcto: ${data.data?.nombre || usuario}</div>`;
+                log('ok', 'Login correcto');
+            } catch (error) {
+                div.innerHTML = `<div class="alert alert-danger mb-0">${error.message}</div>`;
+                log('err', `Login falló: ${error.message}`);
+            }
+        });
+
+        document.getElementById('testEstudiantes').addEventListener('click', async () => {
+            const div = document.getElementById('resultEstudiantes');
+            div.innerHTML = 'Cargando estudiantes...';
+
+            try {
+                const data = await fetchJson(`${API}?action=obtenerEstudiantes`);
+                const total = Array.isArray(data.data) ? data.data.length : 0;
+                div.innerHTML = `<div class="alert alert-success">${total} estudiantes cargados</div>`;
+                log('ok', `Estudiantes cargados: ${total}`);
+            } catch (error) {
+                div.innerHTML = `<div class="alert alert-danger mb-0">${error.message}</div>`;
+                log('err', `Listar estudiantes falló: ${error.message}`);
+            }
+        });
+
+        document.getElementById('testAgregar').addEventListener('click', async () => {
+            const div = document.getElementById('resultAgregar');
+            const nombre = document.getElementById('tNombre').value.trim();
+            const apellido = document.getElementById('tApellido').value.trim();
+            const matricula = document.getElementById('tMatricula').value.trim();
+
+            if (!nombre || !apellido || !matricula) {
+                alert('Completa nombre, apellido y matrícula.');
+                return;
+            }
+
+            div.innerHTML = 'Creando estudiante...';
+
+            try {
+                const data = await fetchJson(`${API}?action=agregarEstudiante`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, apellido, numero_matricula: matricula })
+                });
+
+                div.innerHTML = `<div class="alert alert-success mb-0">Creado con ID ${data.id}</div>`;
+                log('ok', `Estudiante creado ID: ${data.id}`);
+
+                document.getElementById('tNombre').value = '';
+                document.getElementById('tApellido').value = '';
+                document.getElementById('tMatricula').value = '';
+            } catch (error) {
+                div.innerHTML = `<div class="alert alert-danger mb-0">${error.message}</div>`;
+                log('err', `Crear estudiante falló: ${error.message}`);
+            }
+        });
+
+        log('ok', 'Panel de pruebas cargado');
+    </script>
+</body>
+</html>

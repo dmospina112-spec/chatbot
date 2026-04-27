@@ -1,0 +1,56 @@
+# Seguridad mínima
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Permitir el acceso directo a verificar.php sin administración de rutas.
+    RewriteRule ^verificar\.php$ - [L]
+</IfModule>
+
+# CORS para uso de la API desde la misma instalación
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type"
+    Header always unset ETag
+</IfModule>
+
+FileETag None
+
+<FilesMatch "\.(php|html?)$">
+    <IfModule mod_headers.c>
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(css|js)$">
+    <IfModule mod_headers.c>
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
+    </IfModule>
+</FilesMatch>
+
+# Compresión
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json
+</IfModule>
+
+# Cache para estáticos
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+</IfModule>
+
+# Protege archivos sensibles
+<Files "config.php">
+    Require all denied
+</Files>
+
+<FilesMatch "^database.*\.sql$">
+    Require all denied
+</FilesMatch>

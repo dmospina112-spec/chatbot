@@ -168,25 +168,6 @@ $adminUsuariosJsVersion = (string) filemtime(__DIR__ . '/js/admin-usuarios.js');
                       </div>
 
                       <div class="mt-3 mb-3">
-                        <label for="adminPreguntaSeguridad" class="form-label">Pregunta de seguridad</label>
-                        <select class="form-select" id="adminPreguntaSeguridad">
-                          <option value="">Selecciona una pregunta</option>
-                          <option value="mascota">¿Cuál es el nombre de tu primera mascota?</option>
-                          <option value="escuela">¿Cómo se llamaba tu escuela primaria?</option>
-                          <option value="madre">¿Cuál es el segundo nombre de tu madre?</option>
-                          <option value="ciudad">¿En qué ciudad naciste?</option>
-                          <option value="profesor">¿Cuál fue tu profesor favorito?</option>
-                          <option value="amigo">¿Cómo se llamaba tu mejor amigo de la infancia?</option>
-                        </select>
-                      </div>
-
-                      <div class="mb-3">
-                        <label for="adminRespuestaSeguridad" class="form-label">Respuesta de seguridad</label>
-                        <input type="text" class="form-control" id="adminRespuestaSeguridad" placeholder="Escribe la respuesta" autocomplete="off">
-                        <div class="form-text" id="adminSecurityHelp">Obligatorias al crear. Se usarán para recuperar la contraseña si el usuario la olvida.</div>
-                      </div>
-
-                      <div class="mt-3 mb-3">
                         <label for="adminContrasena" class="form-label">Contraseña</label>
                         <input type="password" class="form-control" id="adminContrasena" placeholder="Mínimo 8 caracteres" minlength="8">
                         <div class="form-text" id="adminPasswordHelp">Obligatoria al crear. Si editas y la dejas vacía, se conserva la actual.</div>
